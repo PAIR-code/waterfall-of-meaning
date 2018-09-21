@@ -1,0 +1,44 @@
+
+<script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+<style>
+  body {
+    font: 11pt roboto;
+  }
+  #word {
+    width: 1000px;
+  }
+  #he, #she, #word {
+    display: inline-block;
+    vertical-align: top;
+  }
+  #container {
+    margin-top: 100px;
+  }
+  #he, #she {
+    font-size: 20pt;
+  }
+  #autocomplete {
+    font-size: 15pt;
+    width: 300px;
+  }
+  .word-value {
+    height: 35px;
+    line-height: 35px;
+  }
+</style>
+
+<script src="/barbacon.d1656f29.js"></script>
+
+<div id="body" style="display: none">
+  <input type="text" id="autocomplete">
+  <div id="error">Word not found...</div>
+  
+  <div id="container">
+      <div id="he">he</div>
+      <div id="word"></div>
+      <div id="she">she</div>
+  </div>    
+</div>
+<div id="loading">
+  Loading embeddings...
+</div>
