@@ -43,8 +43,10 @@ async function setup() {
 
   const leftAxisWordTensor = embeddings[LEFT_AXIS_WORD];
   const rightAxisWordTensor = embeddings[RIGHT_AXIS_WORD];
+
   const direction = rightAxisWordTensor.sub(leftAxisWordTensor);
   const directionLength = direction.norm();
+  const normalizedDirection = direction.div(directionLength);
 
   loadingElement.style.display = 'none';
   bodyElement.style.display = '';
@@ -62,22 +64,15 @@ async function setup() {
     }
 
     tf.tidy(() => {
-      const projection = wordEmbedding.sub(leftAxisWordTensor)
-                             .dot(direction)
-                             .div(direction.dot(direction))
-                             .mul(direction);
-      const projectionLength = projection.norm();
-
-      const projectionToDirectionLengthRatio =
-          projectionLength.dataSync()[0] / directionLength.dataSync()[0];
+      const dotProduct = wordEmbedding.dot(normalizedDirection).dataSync()[0];
+      // The dot product is in [-1, 1], so we rescale it to [0, 1].
+      const similarity = (1 + dotProduct) / 2;
 
       const wordDiv = document.createElement('div');
       wordDiv.className = 'word-value';
       wordDiv.innerText = word;
-      wordDiv.style.marginLeft = Math.floor(
-                                     projectionToDirectionLengthRatio *
-                                     wordsContainerElement.offsetWidth) +
-          'px';
+      wordDiv.style.marginLeft =
+          Math.floor(similarity * wordsContainerElement.offsetWidth) + 'px';
       wordsContainerElement.appendChild(wordDiv);
     });
   });

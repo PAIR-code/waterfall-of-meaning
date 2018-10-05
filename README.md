@@ -23,3 +23,7 @@ Deploy the demo to GCP (you need gsutil and be logged in):
 ```
 ./deploy.sh
 ```
+
+The demo lives here: https://storage.googleapis.com/barbican-waterfall-of-meaning/demo/index.html
+
+This is not an official Google product.
