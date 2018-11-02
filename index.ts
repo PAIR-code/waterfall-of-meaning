@@ -18,17 +18,19 @@
 import * as tf from '@tensorflow/tfjs';
 
 const EMBEDDINGS_URL =
-    'https://storage.googleapis.com/barbican-waterfall-of-meaning/embeddings.json';
+  'https://storage.googleapis.com/barbican-waterfall-of-meaning/embeddings.json';
 
 const LEFT_AXIS_WORD = 'he';
 const RIGHT_AXIS_WORD = 'she';
+
+const NEIGHBOR_COUNT = 50;
 
 const loadingElement = document.getElementById('loading');
 const bodyElement = document.getElementById('body');
 const errorElement = document.getElementById('error');
 
 const textInputElement =
-    document.getElementById('word-input') as HTMLInputElement;
+  document.getElementById('word-input') as HTMLInputElement;
 const wordsContainerElement = document.getElementById('words-container');
 
 const width = 1000;
@@ -40,6 +42,13 @@ async function setup() {
 
   const embeddings = {};
   words.forEach(word => embeddings[word] = tf.tensor1d(json[word]));
+
+  var embArray = [];
+  for (var i = 0; i < words.length; i++) {
+    embArray.push(json[words[i]]);
+  }
+  embArray.pop()
+  const embeddingsTensor = tf.tensor(embArray)
 
   const leftAxisWordTensor = embeddings[LEFT_AXIS_WORD];
   const rightAxisWordTensor = embeddings[RIGHT_AXIS_WORD];
@@ -63,18 +72,30 @@ async function setup() {
       return;
     }
 
-    tf.tidy(() => {
-      const dotProduct = wordEmbedding.dot(normalizedDirection).dataSync()[0];
-      // The dot product is in [-1, 1], so we rescale it to [0, 1].
-      const similarity = (1 + dotProduct) / 2;
+    const word_cosines = embeddingsTensor.dot(wordEmbedding);
+    const nearest_inds = tf.topk(word_cosines, NEIGHBOR_COUNT, true);
+    console.log(nearest_inds.values.dataSync());
+    console.log(nearest_inds.indices.dataSync());
+    const nearest_inds2 = nearest_inds.indices.dataSync()
+    for (var i = 0; i < nearest_inds2.length; i++) {
+      const word = words[nearest_inds2[i]];
+      console.log(word);
+      const wordEmbedding = embeddings[word];
 
-      const wordDiv = document.createElement('div');
-      wordDiv.className = 'word-value';
-      wordDiv.innerText = word;
-      wordDiv.style.marginLeft =
+
+      tf.tidy(() => {
+        const dotProduct = wordEmbedding.dot(normalizedDirection).dataSync()[0];
+        // The dot product is in [-1, 1], so we rescale it to [0, 1].
+        const similarity = (1 + dotProduct) / 2;
+
+        const wordDiv = document.createElement('div');
+        wordDiv.className = 'word-value';
+        wordDiv.innerText = word;
+        wordDiv.style.marginLeft =
           Math.floor(similarity * wordsContainerElement.offsetWidth) + 'px';
-      wordsContainerElement.appendChild(wordDiv);
-    });
+        wordsContainerElement.appendChild(wordDiv);
+      });
+    }
   });
 }
 
