@@ -16,24 +16,39 @@
  */
 
 import * as tf from '@tensorflow/tfjs';
+import {embedding} from '@tensorflow/tfjs-layers/dist/exports_layers';
 
 const EMBEDDINGS_URL =
   'https://storage.googleapis.com/barbican-waterfall-of-meaning/embeddings.json';
 
-const LEFT_AXIS_WORD = 'he';
-const RIGHT_AXIS_WORD = 'she';
+let LEFT_AXIS_WORD = 'he';
+let RIGHT_AXIS_WORD = 'she';
 
-const NEIGHBOR_COUNT = 50;
+let NEIGHBOR_COUNT = 10;
 
 const loadingElement = document.getElementById('loading');
 const bodyElement = document.getElementById('body');
 const errorElement = document.getElementById('error');
 
+const directionInputElement1 =
+  document.getElementById('direction-input1') as HTMLInputElement;
+const directionInputElement2 =
+  document.getElementById('direction-input2') as HTMLInputElement;
 const textInputElement =
   document.getElementById('word-input') as HTMLInputElement;
 const wordsContainerElement = document.getElementById('words-container');
+const numNeighborsInputElement =
+  document.getElementById('num-neighbors') as HTMLInputElement;
 
 const width = 1000;
+
+function stretchValue(value) {
+  return Math.max(Math.min(value * 2, 1.0), -1.0)
+}
+
+// function generateAnalogies() {
+//   return 1
+// }
 
 async function setup() {
   const result = await fetch(EMBEDDINGS_URL);
@@ -43,59 +58,95 @@ async function setup() {
   const embeddings = {};
   words.forEach(word => embeddings[word] = tf.tensor1d(json[word]));
 
-  var embArray = [];
-  for (var i = 0; i < words.length; i++) {
+  function wordExists(word) {
+    return embeddings.hasOwnProperty(word)
+  }
+
+  let embArray = [];
+  for (let i = 0; i < words.length; i++) {
     embArray.push(json[words[i]]);
   }
   embArray.pop()
   const embeddingsTensor = tf.tensor(embArray)
 
-  const leftAxisWordTensor = embeddings[LEFT_AXIS_WORD];
-  const rightAxisWordTensor = embeddings[RIGHT_AXIS_WORD];
+  let leftAxisWordTensor = embeddings[LEFT_AXIS_WORD];
+  let rightAxisWordTensor = embeddings[RIGHT_AXIS_WORD];
 
-  const direction = rightAxisWordTensor.sub(leftAxisWordTensor);
-  const directionLength = direction.norm();
-  const normalizedDirection = direction.div(directionLength);
+  let direction = rightAxisWordTensor.sub(leftAxisWordTensor);
+  let directionLength = direction.norm();
+  let normalizedDirection = direction.div(directionLength);
 
   loadingElement.style.display = 'none';
   bodyElement.style.display = '';
 
+  numNeighborsInputElement.addEventListener('change', () => {
+    if (!isNaN(parseInt(numNeighborsInputElement.value))) {
+      NEIGHBOR_COUNT = parseInt(numNeighborsInputElement.value, 10)
+    } else {
+      numNeighborsInputElement.value = NEIGHBOR_COUNT.toString(10)
+    }
+  })
+
+  directionInputElement1.addEventListener('change', () => {
+    if (!wordExists(directionInputElement1.value)) {
+      directionInputElement1.value = LEFT_AXIS_WORD;
+      return;
+    }
+    LEFT_AXIS_WORD = directionInputElement1.value;
+    leftAxisWordTensor = embeddings[LEFT_AXIS_WORD];
+    direction = rightAxisWordTensor.sub(leftAxisWordTensor);
+    directionLength = direction.norm();
+    normalizedDirection = direction.div(directionLength);
+  })
+
+  directionInputElement2.addEventListener('change', () => {
+    if (!wordExists(directionInputElement2.value)) {
+      directionInputElement2.value = RIGHT_AXIS_WORD;
+      return;
+    }
+    RIGHT_AXIS_WORD = directionInputElement2.value;
+    rightAxisWordTensor = embeddings[RIGHT_AXIS_WORD];
+    direction = rightAxisWordTensor.sub(leftAxisWordTensor);
+    directionLength = direction.norm();
+    normalizedDirection = direction.div(directionLength);
+  })
+
   textInputElement.addEventListener('change', () => {
     const word = textInputElement.value;
-    const wordEmbedding = embeddings[word];
-
     // If the word is not found show the error message,
-    if (wordEmbedding != null) {
+    if (wordExists(word)) {
       errorElement.style.display = 'none';
     } else {
       errorElement.style.display = '';
       return;
     }
 
+    const wordEmbedding = embeddings[word];
     const word_cosines = embeddingsTensor.dot(wordEmbedding);
-    const nearest_inds = tf.topk(word_cosines, NEIGHBOR_COUNT, true);
-    console.log(nearest_inds.values.dataSync());
-    console.log(nearest_inds.indices.dataSync());
-    const nearest_inds2 = nearest_inds.indices.dataSync()
-    for (var i = 0; i < nearest_inds2.length; i++) {
-      const word = words[nearest_inds2[i]];
-      console.log(word);
+    const nearest = tf.topk(word_cosines, NEIGHBOR_COUNT, true);
+    const nearest_inds = nearest.indices.dataSync()
+    for (var i = 0; i < nearest_inds.length; i++) {
+      const word = words[nearest_inds[i]];
+      // console.log(word);
       const wordEmbedding = embeddings[word];
 
 
       tf.tidy(() => {
         const dotProduct = wordEmbedding.dot(normalizedDirection).dataSync()[0];
         // The dot product is in [-1, 1], so we rescale it to [0, 1].
-        const similarity = (1 + dotProduct) / 2;
-
+        const similarity = (1 + stretchValue(dotProduct)) / 2;
         const wordDiv = document.createElement('div');
         wordDiv.className = 'word-value';
         wordDiv.innerText = word;
         wordDiv.style.marginLeft =
           Math.floor(similarity * wordsContainerElement.offsetWidth) + 'px';
-        wordsContainerElement.appendChild(wordDiv);
+        wordsContainerElement.insertBefore(wordDiv,
+          wordsContainerElement.firstChild);
       });
     }
+    let hr = document.createElement('hr')
+    wordsContainerElement.insertBefore(hr,
+      wordsContainerElement.firstChild);
   });
 }
 
