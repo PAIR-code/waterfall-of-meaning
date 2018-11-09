@@ -46,10 +46,6 @@ function stretchValue(value) {
   return Math.max(Math.min(value * 2, 1.0), -1.0)
 }
 
-// function generateAnalogies() {
-//   return 1
-// }
-
 async function setup() {
   const result = await fetch(EMBEDDINGS_URL);
   const json = await result.json();
@@ -124,25 +120,30 @@ async function setup() {
     const wordEmbedding = embeddings[word];
     const word_cosines = embeddingsTensor.dot(wordEmbedding);
     const nearest = tf.topk(word_cosines, NEIGHBOR_COUNT, true);
-    const nearest_inds = nearest.indices.dataSync()
-    for (var i = 0; i < nearest_inds.length; i++) {
-      const word = words[nearest_inds[i]];
-      // console.log(word);
+    const nearestInds = nearest.indices.dataSync()
+
+    let dirSimilarities = [];
+    for (var i = 0; i < nearestInds.length; i++) {
+      const word = words[nearestInds[i]];
       const wordEmbedding = embeddings[word];
-
-
       tf.tidy(() => {
         const dotProduct = wordEmbedding.dot(normalizedDirection).dataSync()[0];
         // The dot product is in [-1, 1], so we rescale it to [0, 1].
-        const similarity = (1 + stretchValue(dotProduct)) / 2;
-        const wordDiv = document.createElement('div');
-        wordDiv.className = 'word-value';
-        wordDiv.innerText = word;
-        wordDiv.style.marginLeft =
-          Math.floor(similarity * wordsContainerElement.offsetWidth) + 'px';
-        wordsContainerElement.insertBefore(wordDiv,
-          wordsContainerElement.firstChild);
+        dirSimilarities.push([word, (1 + stretchValue(dotProduct)) / 2]);
       });
+    }
+    // Sort words w.r.t. their direction similarity
+    dirSimilarities.sort((left, right) => {return left[1] < right[1] ? -1 : 1});
+
+    for (var i = 0; i < dirSimilarities.length; i++) {
+      let [word, similarity] = dirSimilarities[i]
+      const wordDiv = document.createElement('div');
+      wordDiv.className = 'word-value';
+      wordDiv.innerText = word;
+      wordDiv.style.marginLeft =
+        Math.floor(similarity * wordsContainerElement.offsetWidth) + 'px';
+      wordsContainerElement.insertBefore(wordDiv,
+        wordsContainerElement.firstChild);
     }
     let hr = document.createElement('hr')
     wordsContainerElement.insertBefore(hr,
