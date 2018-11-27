@@ -15,67 +15,109 @@
  * =============================================================================
  */
 
-import * as tf from '@tensorflow/tfjs';
+import * as we from './word_embedding';
 
 const EMBEDDINGS_URL =
     'https://storage.googleapis.com/barbican-waterfall-of-meaning/embeddings.json';
-
-const LEFT_AXIS_WORD = 'he';
-const RIGHT_AXIS_WORD = 'she';
+let LEFT_AXIS_WORD = 'he';
+let RIGHT_AXIS_WORD = 'she';
+let NEIGHBOR_COUNT = 20;
+let emb: we.WordEmbedding;
 
 const loadingElement = document.getElementById('loading');
 const bodyElement = document.getElementById('body');
 const errorElement = document.getElementById('error');
-
+const directionInputElement1 =
+    document.getElementById('direction-input1') as HTMLInputElement;
+const directionInputElement2 =
+    document.getElementById('direction-input2') as HTMLInputElement;
 const textInputElement =
     document.getElementById('word-input') as HTMLInputElement;
 const wordsContainerElement = document.getElementById('words-container');
+const numNeighborsInputElement =
+    document.getElementById('num-neighbors') as HTMLInputElement;
 
-const width = 1000;
+numNeighborsInputElement.addEventListener('change', () => {
+  const num_neighbors = parseInt(numNeighborsInputElement.value, 10);
+  if (!isNaN(num_neighbors)) {
+    NEIGHBOR_COUNT = num_neighbors;
+  } else {
+    numNeighborsInputElement.value = NEIGHBOR_COUNT.toString(10);
+  }
+});
+
+directionInputElement1.addEventListener('change', () => {
+  if (!emb.hasWord(directionInputElement1.value)) {
+    directionInputElement1.value = LEFT_AXIS_WORD;
+    return;
+  }
+  LEFT_AXIS_WORD = directionInputElement1.value;
+});
+
+directionInputElement2.addEventListener('change', () => {
+  if (!emb.hasWord(directionInputElement2.value)) {
+    directionInputElement2.value = RIGHT_AXIS_WORD;
+    return;
+  }
+  RIGHT_AXIS_WORD = directionInputElement2.value;
+});
+
+textInputElement.addEventListener('change', () => {
+  const q_word = textInputElement.value;
+  // If the word is not found show the error message,
+  if (emb.hasWord(q_word)) {
+    errorElement.style.display = 'none';
+  } else {
+    errorElement.style.display = '';
+    return;
+  }
+  const dirSimilarities = emb.projectNearest(
+      q_word, LEFT_AXIS_WORD, RIGHT_AXIS_WORD, NEIGHBOR_COUNT);
+  for (let i = 0; i < dirSimilarities.length; i++) {
+    let [word, similarity] = dirSimilarities[i];
+    similarity = stretchValue(similarity);
+    const color = (word == q_word) ? 'blue' : 'black';
+    const margin =
+        Math.floor(similarity * wordsContainerElement.offsetWidth) + 'px';
+    wordsContainerElement.insertBefore(
+        createWordDiv(word, color, margin), wordsContainerElement.firstChild);
+  }
+  wordsContainerElement.insertBefore(
+      createSeparator(), wordsContainerElement.firstChild);
+  // Insert direction words in middle pane in case we change directions later on
+  const wordDiv =
+      createWordDiv(LEFT_AXIS_WORD + '--->' + RIGHT_AXIS_WORD, 'red', '0px');
+  wordDiv.style.textAlign = 'center';
+  wordsContainerElement.insertBefore(wordDiv, wordsContainerElement.firstChild);
+  wordsContainerElement.insertBefore(
+      createSeparator(), wordsContainerElement.firstChild);
+});
+
+function createWordDiv(
+    text: string, color: string, margin: string): HTMLDivElement {
+  const wordDiv = document.createElement('div');
+  wordDiv.className = 'word-value';
+  wordDiv.innerText = text;
+  wordDiv.style.color = color;
+  wordDiv.style.marginLeft = margin;
+  return wordDiv;
+}
+
+function createSeparator(): HTMLHRElement {
+  return document.createElement('hr');
+}
+
+function stretchValue(value: number): number {
+  // The dot product is in [-1, 1], so we rescale it to [0, 1].
+  // We stretch values between [-0.5, 0.5] to [-1, 1]
+  return (1 + Math.max(Math.min(value * 2, 1.0), -1.0)) / 2;
+}
 
 async function setup() {
-  const result = await fetch(EMBEDDINGS_URL);
-  const json = await result.json();
-  const words = Object.keys(json);
-
-  const embeddings = {};
-  words.forEach(word => embeddings[word] = tf.tensor1d(json[word]));
-
-  const leftAxisWordTensor = embeddings[LEFT_AXIS_WORD];
-  const rightAxisWordTensor = embeddings[RIGHT_AXIS_WORD];
-
-  const direction = rightAxisWordTensor.sub(leftAxisWordTensor);
-  const directionLength = direction.norm();
-  const normalizedDirection = direction.div(directionLength);
-
+  emb = new we.WordEmbedding(EMBEDDINGS_URL);
+  await emb.init();
   loadingElement.style.display = 'none';
   bodyElement.style.display = '';
-
-  textInputElement.addEventListener('change', () => {
-    const word = textInputElement.value;
-    const wordEmbedding = embeddings[word];
-
-    // If the word is not found show the error message,
-    if (wordEmbedding != null) {
-      errorElement.style.display = 'none';
-    } else {
-      errorElement.style.display = '';
-      return;
-    }
-
-    tf.tidy(() => {
-      const dotProduct = wordEmbedding.dot(normalizedDirection).dataSync()[0];
-      // The dot product is in [-1, 1], so we rescale it to [0, 1].
-      const similarity = (1 + dotProduct) / 2;
-
-      const wordDiv = document.createElement('div');
-      wordDiv.className = 'word-value';
-      wordDiv.innerText = word;
-      wordDiv.style.marginLeft =
-          Math.floor(similarity * wordsContainerElement.offsetWidth) + 'px';
-      wordsContainerElement.appendChild(wordDiv);
-    });
-  });
 }
 
 setup();

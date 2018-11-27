@@ -20,14 +20,17 @@ limitations under the License.
   #words-container {
     width: 1000px;
   }
-  #he, #she, #words-container {
+  #direction-input1, #direction-input2, #words-container {
     display: inline-block;
     vertical-align: top;
+    background: #fafafa;
+    border-left: solid 1px #DADCE0;
+    border-right: solid 1px #DADCE0;
   }
   #container {
     margin-top: 100px;
   }
-  #he, #she {
+  #direction-input1, #direction-input2 {
     font-size: 20pt;
   }
   #word-input {
@@ -38,16 +41,26 @@ limitations under the License.
     height: 35px;
     line-height: 35px;
   }
+  #num-neighbors {
+    width: 40px;
+    font-size: 15pt;
+    display: inline-block;
+    vertical-align: top;
+  }
 </style>
 
 <div id="body" style="display: none">
-  <input type="text" id="word-input">
+
+  <div>
+    <input type="text" id="word-input">
+    <input type="text" id="num-neighbors" placeholder="20">
+  </div>
   <div id="error">Word not found...</div>
 
   <div id="container">
-      <div id="he">he</div>
+      <input type="text" id="direction-input1" placeholder="he">
       <div id="words-container"></div>
-      <div id="she">she</div>
+      <input type="text" id="direction-input2" placeholder="she">
   </div>
 </div>
 <div id="loading">
