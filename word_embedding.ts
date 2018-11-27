@@ -17,16 +17,19 @@
 /**
  * This is where we have all functions for word embeddings, rest of the GUI is
  * unaware of tfjs vectors
-*/
+ */
 import * as tf from '@tensorflow/tfjs';
 
 export class WordEmbedding {
   private cachedDirections: {[name: string]: tf.Tensor1D} = {};
-  private embeddingInds: {[name: string]: any};
+  private embeddingInds: {[name: string]: number};
   private embeddingTensor: tf.Tensor2D;
   private words: string[];
-  async init(embeddingURL: string) {
-    const result = await fetch(embeddingURL);
+
+  constructor(private embeddingURL: string) {}
+
+  async init() {
+    const result = await fetch(this.embeddingURL);
     const json = await result.json();
     const words = Object.keys(json);
 
@@ -48,7 +51,9 @@ export class WordEmbedding {
   }
 
   getEmbedding(word: string): tf.Tensor1D {
-    return this.embeddingTensor.gather(this.embeddingInds[word]).squeeze();
+    return tf.tidy(() => tf.gather(this.embeddingTensor, [
+                             this.embeddingInds[word]
+                           ]).squeeze());
   }
 
   hasWord(word: string): boolean {
@@ -56,44 +61,48 @@ export class WordEmbedding {
   }
 
   computeBiasDirection(word1: string, word2: string): tf.Tensor1D {
-    const leftAxisWordTensor = this.getEmbedding(word1);
-    const rightAxisWordTensor = this.getEmbedding(word2);
-    const direction = rightAxisWordTensor.sub(leftAxisWordTensor);
-    const directionLength = direction.norm();
-    return direction.div(directionLength);
+    return tf.tidy(() => {
+      const leftAxisWordTensor = this.getEmbedding(word1);
+      const rightAxisWordTensor = this.getEmbedding(word2);
+      const direction = rightAxisWordTensor.sub(leftAxisWordTensor);
+      const directionLength = direction.norm();
+      return direction.div(directionLength);
+    });
   }
 
   nearest(word: string, numNeighbors: number): string[] {
-    const wordEmbedding = this.getEmbedding(word);
-    const wordCosines = this.embeddingTensor.dot(wordEmbedding);
-    const nearest = tf.topk(wordCosines, numNeighbors, true);
-    const nearestInds = nearest.indices.dataSync();
-    const nearestWords = [];
-    for (let i = 0; i < nearestInds.length; i++) {
-      nearestWords.push(this.words[nearestInds[i]]);
-    }
-    return nearestWords;
+    return tf.tidy(() => {
+      const wordEmbedding = this.getEmbedding(word);
+      const wordCosines = this.embeddingTensor.dot(wordEmbedding);
+      const nearest = tf.topk(wordCosines, numNeighbors, true);
+      const nearestInds = nearest.indices.dataSync();
+      const nearestWords = [];
+      for (let i = 0; i < nearestInds.length; i++) {
+        nearestWords.push(this.words[nearestInds[i]]);
+      }
+      return nearestWords;
+    });
   }
 
   project(word: string, axisLeft: string, axisRight: string): number {
-    const wordEmbedding = this.getEmbedding(word);
-    let dotProduct: number;
-    let biasDirection: tf.Tensor1D;
-    const mergedKey = axisLeft + axisRight;
-    if (mergedKey in this.cachedDirections) {
-      biasDirection = this.cachedDirections[mergedKey];
-    } else {
-      biasDirection = this.computeBiasDirection(axisLeft, axisRight);
-      this.cachedDirections[mergedKey] = biasDirection;
-    }
-    tf.tidy(() => {
-      dotProduct = wordEmbedding.dot(biasDirection).dataSync()[0];
+    return tf.tidy(() => {
+      const wordEmbedding = this.getEmbedding(word);
+      let biasDirection: tf.Tensor1D;
+      const mergedKey = axisLeft + axisRight;
+      if (mergedKey in this.cachedDirections) {
+        biasDirection = this.cachedDirections[mergedKey];
+      } else {
+        biasDirection = this.computeBiasDirection(axisLeft, axisRight);
+        this.cachedDirections[mergedKey] = tf.keep(biasDirection);
+      }
+      const dotProduct = wordEmbedding.dot(biasDirection).dataSync()[0];
+      return dotProduct;
     });
-    return dotProduct;
   }
 
-  projectNearest(word: string, axisLeft: string, axisRight: string,
-    numNeighbors: number): [string, number][] {
+  projectNearest(
+      word: string, axisLeft: string, axisRight: string,
+      numNeighbors: number): [string, number][] {
     const nearestWords = this.nearest(word, numNeighbors);
     let dirSimilarities: [string, number][] = [];
     for (let i = 0; i < nearestWords.length; i++) {

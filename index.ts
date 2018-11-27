@@ -15,27 +15,27 @@
  * =============================================================================
  */
 
-import * as we from "./word_embedding";
+import * as we from './word_embedding';
 
 const EMBEDDINGS_URL =
-  'https://storage.googleapis.com/barbican-waterfall-of-meaning/embeddings.json';
-let LEFT_AXIS_WORD = "he";
-let RIGHT_AXIS_WORD = "she";
-let NEIGHBOR_COUNT = 10;
+    'https://storage.googleapis.com/barbican-waterfall-of-meaning/embeddings.json';
+let LEFT_AXIS_WORD = 'he';
+let RIGHT_AXIS_WORD = 'she';
+let NEIGHBOR_COUNT = 20;
 let emb: we.WordEmbedding;
 
 const loadingElement = document.getElementById('loading');
 const bodyElement = document.getElementById('body');
 const errorElement = document.getElementById('error');
 const directionInputElement1 =
-  document.getElementById('direction-input1') as HTMLInputElement;
+    document.getElementById('direction-input1') as HTMLInputElement;
 const directionInputElement2 =
-  document.getElementById('direction-input2') as HTMLInputElement;
+    document.getElementById('direction-input2') as HTMLInputElement;
 const textInputElement =
-  document.getElementById('word-input') as HTMLInputElement;
+    document.getElementById('word-input') as HTMLInputElement;
 const wordsContainerElement = document.getElementById('words-container');
 const numNeighborsInputElement =
-  document.getElementById('num-neighbors') as HTMLInputElement;
+    document.getElementById('num-neighbors') as HTMLInputElement;
 
 numNeighborsInputElement.addEventListener('change', () => {
   const num_neighbors = parseInt(numNeighborsInputElement.value, 10);
@@ -71,30 +71,30 @@ textInputElement.addEventListener('change', () => {
     errorElement.style.display = '';
     return;
   }
-  const dirSimilarities = emb.projectNearest(q_word, LEFT_AXIS_WORD,
-    RIGHT_AXIS_WORD, NEIGHBOR_COUNT);
+  const dirSimilarities = emb.projectNearest(
+      q_word, LEFT_AXIS_WORD, RIGHT_AXIS_WORD, NEIGHBOR_COUNT);
   for (let i = 0; i < dirSimilarities.length; i++) {
     let [word, similarity] = dirSimilarities[i];
     similarity = stretchValue(similarity);
     const color = (word == q_word) ? 'blue' : 'black';
     const margin =
-      Math.floor(similarity * wordsContainerElement.offsetWidth) + 'px';
-    wordsContainerElement.insertBefore(createWordDiv(word, color, margin),
-      wordsContainerElement.firstChild);
+        Math.floor(similarity * wordsContainerElement.offsetWidth) + 'px';
+    wordsContainerElement.insertBefore(
+        createWordDiv(word, color, margin), wordsContainerElement.firstChild);
   }
-  wordsContainerElement.insertBefore(createSeparator(),
-    wordsContainerElement.firstChild);
+  wordsContainerElement.insertBefore(
+      createSeparator(), wordsContainerElement.firstChild);
   // Insert direction words in middle pane in case we change directions later on
-  const wordDiv = createWordDiv(LEFT_AXIS_WORD + '--->' + RIGHT_AXIS_WORD,
-    'red', '0px');
+  const wordDiv =
+      createWordDiv(LEFT_AXIS_WORD + '--->' + RIGHT_AXIS_WORD, 'red', '0px');
   wordDiv.style.textAlign = 'center';
   wordsContainerElement.insertBefore(wordDiv, wordsContainerElement.firstChild);
-  wordsContainerElement.insertBefore(createSeparator(),
-    wordsContainerElement.firstChild);
+  wordsContainerElement.insertBefore(
+      createSeparator(), wordsContainerElement.firstChild);
 });
 
-function createWordDiv(text: string, color: string, margin: string):
-  HTMLDivElement {
+function createWordDiv(
+    text: string, color: string, margin: string): HTMLDivElement {
   const wordDiv = document.createElement('div');
   wordDiv.className = 'word-value';
   wordDiv.innerText = text;
@@ -114,8 +114,8 @@ function stretchValue(value: number): number {
 }
 
 async function setup() {
-  emb = new we.WordEmbedding();
-  await emb.init(EMBEDDINGS_URL);
+  emb = new we.WordEmbedding(EMBEDDINGS_URL);
+  await emb.init();
   loadingElement.style.display = 'none';
   bodyElement.style.display = '';
 }
