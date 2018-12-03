@@ -15,20 +15,29 @@
 """Converts txt word embeddings to embeddings.json"""
 
 import json
+import numpy as np
 
 FILENAME = 'w2v_gnews_small.txt'
 
-f = open(, 'r')
+f = open(FILENAME, 'r')
 lines = f.read().split('\n')
 f.close()
 
-embeddings = {}
+words = []
+embeddings = []
+
 lent = 0
 for line in lines:
   vals = line.split(' ')
 
-  embeddings[vals[0]] = [float(val) for val in vals[1:]]
+  words.append(vals[0])
+  embeddings.append([float(val) for val in vals[1:]])
 
-f = open('embeddings.json', 'w')
-f.write(json.dumps(embeddings))
+f = open('embedding-words.json', 'w')
+f.write(json.dumps(words))
+f.close()
+
+stacked_embeddings = np.stack(embeddings).astype('float32')
+f = open('embedding-values.bin', 'w')
+f.write(stacked_embeddings.tobytes())
 f.close()
