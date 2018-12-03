@@ -50,7 +50,7 @@ export class WordEmbedding {
       this.embeddingInds[word] = i;
     }
     this.embeddingTensor =
-        tf.tensor2d(values.slice(0, dimensions * embLen), [embLen, dimensions]);
+        tf.tensor2d(values.slice(0, embLen * dimensions), [embLen, dimensions]);
     this.words = words.slice(0, embLen);
   }
 
