@@ -26,27 +26,31 @@ export class WordEmbedding {
   private embeddingTensor: tf.Tensor2D;
   private words: string[];
 
-  constructor(private embeddingURL: string) {}
+  constructor(
+      private embeddingWordsURL: string, private embeddingValuesURL: string) {}
 
   async init() {
-    const result = await fetch(this.embeddingURL);
-    const json = await result.json();
-    const words = Object.keys(json);
+    const wordsRequest = await fetch(this.embeddingWordsURL);
+    const words = await wordsRequest.json();
 
-    // Round # words to closest 10th index till tfjs prime number bug is fixed
+    const valuesRequest = await fetch(this.embeddingValuesURL);
+    const values = new Float32Array(await valuesRequest.arrayBuffer());
+
+    // Round # words to closest 10th index till tfjs prime number bug is
+    // fixed.
     let embLen = words.length;
     if (embLen > 10000) {
       embLen = Math.floor(embLen / 10) * 10;
     }
+    const dimensions = values.length / words.length;
 
     this.embeddingInds = {};
-    let embArray = [];
     for (let i = 0; i < embLen; i++) {
       const word = words[i];
       this.embeddingInds[word] = i;
-      embArray.push(json[word]);
     }
-    this.embeddingTensor = await tf.tensor2d(embArray);
+    this.embeddingTensor =
+        tf.tensor2d(values.slice(0, embLen * dimensions), [embLen, dimensions]);
     this.words = words.slice(0, embLen);
   }
 

@@ -16,8 +16,12 @@
  */
 import {WordEmbedding} from './word_embedding';
 
-const EMBEDDINGS_URL =
-    'https://storage.googleapis.com/barbican-waterfall-of-meaning/embeddings.json';
+
+const EMBEDDINGS_DIR =
+    'https://storage.googleapis.com/barbican-waterfall-of-meaning/'
+const EMBEDDINGS_WORDS_URL = EMBEDDINGS_DIR + 'embedding-words.json';
+const EMBEDDINGS_VALUES_URL = EMBEDDINGS_DIR + 'embedding-values.bin';
+
 let LEFT_AXIS_WORD = 'he';
 let RIGHT_AXIS_WORD = 'she';
 let NEIGHBOR_COUNT = 20;
@@ -113,7 +117,7 @@ function stretchValue(value: number): number {
 }
 
 async function setup() {
-  emb = new WordEmbedding(EMBEDDINGS_URL);
+  emb = new WordEmbedding(EMBEDDINGS_WORDS_URL, EMBEDDINGS_VALUES_URL);
   await emb.init();
   loadingElement.style.display = 'none';
   bodyElement.style.display = '';
