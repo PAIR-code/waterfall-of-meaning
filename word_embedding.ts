@@ -70,22 +70,25 @@ export class WordEmbedding {
     });
   }
 
-  nearest(word: string, numNeighbors: number): string[] {
-    return tf.tidy(() => {
+  async nearest(word: string, numNeighbors: number): Promise<string[]> {
+    const nearestIndices = tf.tidy(() => {
       const wordEmbedding = this.getEmbedding(word);
       const wordCosines = this.embeddingTensor.dot(wordEmbedding);
-      const nearest = tf.topk(wordCosines, numNeighbors, true);
-      const nearestInds = nearest.indices.dataSync();
-      const nearestWords = [];
-      for (let i = 0; i < nearestInds.length; i++) {
-        nearestWords.push(this.words[nearestInds[i]]);
-      }
-      return nearestWords;
+      return tf.topk(wordCosines, numNeighbors, true).indices;
     });
+    const nearestIndsData = await nearestIndices.data();
+    nearestIndices.dispose();
+
+    const nearestWords = [];
+    for (let i = 0; i < nearestIndsData.length; i++) {
+      nearestWords.push(this.words[nearestIndsData[i]]);
+    }
+    return nearestWords;
   }
 
-  project(word: string, axisLeft: string, axisRight: string): number {
-    return tf.tidy(() => {
+  async project(word: string, axisLeft: string, axisRight: string):
+      Promise<number> {
+    const dotProduct = tf.tidy(() => {
       const wordEmbedding = this.getEmbedding(word);
       let biasDirection: tf.Tensor1D;
       const mergedKey = axisLeft + axisRight;
@@ -95,19 +98,20 @@ export class WordEmbedding {
         biasDirection = this.computeBiasDirection(axisLeft, axisRight);
         this.cachedDirections[mergedKey] = tf.keep(biasDirection);
       }
-      const dotProduct = wordEmbedding.dot(biasDirection).dataSync()[0];
-      return dotProduct;
+      return wordEmbedding.dot(biasDirection);
     });
+    const dotProductData = await dotProduct.data();
+    return dotProductData[0];
   }
 
-  projectNearest(
+  async projectNearest(
       word: string, axisLeft: string, axisRight: string,
-      numNeighbors: number): [string, number][] {
-    const nearestWords = this.nearest(word, numNeighbors);
+      numNeighbors: number): Promise<[string, number][]> {
+    const nearestWords = await this.nearest(word, numNeighbors);
     let dirSimilarities: [string, number][] = [];
     for (let i = 0; i < nearestWords.length; i++) {
       const word = nearestWords[i];
-      const sim = this.project(word, axisLeft, axisRight);
+      const sim = await this.project(word, axisLeft, axisRight);
       dirSimilarities.push([word, sim]);
     }
     // Sort words w.r.t. their direction similarity
