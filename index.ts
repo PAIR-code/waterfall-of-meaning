@@ -14,15 +14,14 @@
  * limitations under the License.
  * =============================================================================
  */
-
-import * as we from './word_embedding';
+import {WordEmbedding} from './word_embedding';
 
 const EMBEDDINGS_URL =
     'https://storage.googleapis.com/barbican-waterfall-of-meaning/embeddings.json';
 let LEFT_AXIS_WORD = 'he';
 let RIGHT_AXIS_WORD = 'she';
 let NEIGHBOR_COUNT = 20;
-let emb: we.WordEmbedding;
+let emb: WordEmbedding;
 
 const loadingElement = document.getElementById('loading');
 const bodyElement = document.getElementById('body');
@@ -62,7 +61,7 @@ directionInputElement2.addEventListener('change', () => {
   RIGHT_AXIS_WORD = directionInputElement2.value;
 });
 
-textInputElement.addEventListener('change', () => {
+textInputElement.addEventListener('change', async () => {
   const q_word = textInputElement.value;
   // If the word is not found show the error message,
   if (emb.hasWord(q_word)) {
@@ -71,7 +70,7 @@ textInputElement.addEventListener('change', () => {
     errorElement.style.display = '';
     return;
   }
-  const dirSimilarities = emb.projectNearest(
+  const dirSimilarities = await emb.projectNearest(
       q_word, LEFT_AXIS_WORD, RIGHT_AXIS_WORD, NEIGHBOR_COUNT);
   for (let i = 0; i < dirSimilarities.length; i++) {
     let [word, similarity] = dirSimilarities[i];
@@ -114,7 +113,7 @@ function stretchValue(value: number): number {
 }
 
 async function setup() {
-  emb = new we.WordEmbedding(EMBEDDINGS_URL);
+  emb = new WordEmbedding(EMBEDDINGS_URL);
   await emb.init();
   loadingElement.style.display = 'none';
   bodyElement.style.display = '';
