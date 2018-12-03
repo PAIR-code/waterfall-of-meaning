@@ -52,7 +52,6 @@ export class WordEmbedding {
     this.embeddingTensor =
         tf.tensor2d(values.slice(0, dimensions * embLen), [embLen, dimensions]);
     this.words = words.slice(0, embLen);
-    console.log(this.embeddingTensor);
   }
 
   getEmbedding(word: string): tf.Tensor1D {
