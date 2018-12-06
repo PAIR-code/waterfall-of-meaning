@@ -22,46 +22,17 @@ import * as tf from '@tensorflow/tfjs';
 
 export class WordEmbedding {
   private cachedDirections: {[name: string]: tf.Tensor1D} = {};
-  private embeddingInds: {[name: string]: number};
-  private embeddingTensor: tf.Tensor2D;
-  private words: string[];
 
-  constructor(
-      private embeddingWordsURL: string, private embeddingValuesURL: string) {}
-
-  async init() {
-    const wordsRequest = await fetch(this.embeddingWordsURL);
-    const words = await wordsRequest.json();
-
-    const valuesRequest = await fetch(this.embeddingValuesURL);
-    const values = new Float32Array(await valuesRequest.arrayBuffer());
-
-    // Round # words to closest 10th index till tfjs prime number bug is
-    // fixed.
-    let embLen = words.length;
-    if (embLen > 10000) {
-      embLen = Math.floor(embLen / 10) * 10;
-    }
-    const dimensions = values.length / words.length;
-
-    this.embeddingInds = {};
-    for (let i = 0; i < embLen; i++) {
-      const word = words[i];
-      this.embeddingInds[word] = i;
-    }
-    this.embeddingTensor =
-        tf.tensor2d(values.slice(0, embLen * dimensions), [embLen, dimensions]);
-    this.words = words.slice(0, embLen);
-  }
+  constructor(private embeddingTensor: tf.Tensor2D, private words: string[]) {}
 
   getEmbedding(word: string): tf.Tensor1D {
     return tf.tidy(() => tf.gather(this.embeddingTensor, [
-                             this.embeddingInds[word]
+                             this.words.indexOf(word)
                            ]).squeeze());
   }
 
   hasWord(word: string): boolean {
-    return this.embeddingInds.hasOwnProperty(word);
+    return this.words.indexOf(word) != -1;
   }
 
   computeBiasDirection(word1: string, word2: string): tf.Tensor1D {

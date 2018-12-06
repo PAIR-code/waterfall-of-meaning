@@ -14,6 +14,9 @@
  * limitations under the License.
  * =============================================================================
  */
+import * as tf from '@tensorflow/tfjs';
+import Dexie from 'dexie';
+
 import {WordEmbedding} from './word_embedding';
 
 
@@ -117,10 +120,60 @@ function stretchValue(value: number): number {
 }
 
 async function setup() {
-  emb = new WordEmbedding(EMBEDDINGS_WORDS_URL, EMBEDDINGS_VALUES_URL);
-  await emb.init();
+  // Check if we have an entrie in the database.
+  const db = new Dexie('barbican-database');
+  db.version(1).stores({embeddings: 'words,values'});
+
+  let words: string[];
+  let embeddings: Float32Array;
+  const length = await (db as any).embeddings.count();
+  if (length == null || length == 0) {
+    console.log('Loading embeddings from the network...');
+    const wordsRequest = await fetch(EMBEDDINGS_WORDS_URL);
+    words = await wordsRequest.json();
+
+    const embeddingsRequest = await fetch(EMBEDDINGS_VALUES_URL);
+    embeddings = new Float32Array(await embeddingsRequest.arrayBuffer());
+
+    const blob = new Blob([embeddings], {type: 'octet/stream'});
+
+    await (db as any).embeddings.put({words, values: blob});
+  } else {
+    console.log('Loading embeddings from IndexedDB cache...');
+    const results = await (db as any).embeddings.toArray();
+    words = results[0].words;
+
+    embeddings = await new Promise<Float32Array>((resolve) => {
+      const fileReader = new FileReader();
+      fileReader.onload = event =>
+          resolve(new Float32Array((event.target as any).result));
+      fileReader.readAsArrayBuffer(results[0].values);
+    });
+    await (db as any).close();
+  }
+
+  // Round # words to closest 10th index till tfjs prime number bug is
+  // fixed.
+  let embLen = words.length;
+  if (embLen > 10000) {
+    embLen = Math.floor(embLen / 10) * 10;
+  }
+  const dimensions = embeddings.length / words.length;
+
+  const embeddingTensor = tf.tensor2d(
+      embeddings.slice(0, embLen * dimensions), [embLen, dimensions]);
+  emb = new WordEmbedding(embeddingTensor, words.slice(0, embLen));
   loadingElement.style.display = 'none';
   bodyElement.style.display = '';
 }
 
 setup();
+
+// Call this from the JavaScript console if you want to clear the IndexedDB
+// cache.
+(window as any).clearDatabase = async () => {
+  const db = new Dexie('barbican-database');
+  db.version(1).stores({embeddings: 'words,values'});
+  await (db as any).delete();
+  console.log('Database deleted.');
+};
