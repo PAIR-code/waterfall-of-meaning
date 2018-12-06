@@ -120,7 +120,7 @@ function stretchValue(value: number): number {
 }
 
 async function setup() {
-  // Check if we have an entrie in the database.
+  // Check if we have an entry in the database.
   const db = new Dexie(BARBICAN_DATABASE_NAME);
   db.version(1).stores({embeddings: 'words,values'});
 
