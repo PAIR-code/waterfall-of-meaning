@@ -149,7 +149,7 @@ async function setup() {
           resolve(new Float32Array((event.target as any).result));
       fileReader.readAsArrayBuffer(results[0].values);
     });
-    await (db as any).close();
+    await db.close();
   }
 
   // Round # words to closest 10th index till tfjs prime number bug is
@@ -174,6 +174,6 @@ setup();
 (window as any).clearDatabase = async () => {
   const db = new Dexie('barbican-database');
   db.version(1).stores({embeddings: 'words,values'});
-  await (db as any).delete();
+  await db.delete();
   console.log('Database deleted.');
 };
