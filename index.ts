@@ -19,11 +19,11 @@ import Dexie from 'dexie';
 
 import {WordEmbedding} from './word_embedding';
 
-
 const EMBEDDINGS_DIR =
     'https://storage.googleapis.com/barbican-waterfall-of-meaning/'
 const EMBEDDINGS_WORDS_URL = EMBEDDINGS_DIR + 'embedding-words.json';
 const EMBEDDINGS_VALUES_URL = EMBEDDINGS_DIR + 'embedding-values.bin';
+const BARBICAN_DATABASE_NAME = 'barbican-database';
 
 let LEFT_AXIS_WORD = 'he';
 let RIGHT_AXIS_WORD = 'she';
@@ -121,7 +121,7 @@ function stretchValue(value: number): number {
 
 async function setup() {
   // Check if we have an entrie in the database.
-  const db = new Dexie('barbican-database');
+  const db = new Dexie(BARBICAN_DATABASE_NAME);
   db.version(1).stores({embeddings: 'words,values'});
 
   let words: string[];
@@ -172,7 +172,7 @@ setup();
 // Call this from the JavaScript console if you want to clear the IndexedDB
 // cache.
 (window as any).clearDatabase = async () => {
-  const db = new Dexie('barbican-database');
+  const db = new Dexie(BARBICAN_DATABASE_NAME);
   db.version(1).stores({embeddings: 'words,values'});
   await db.delete();
   console.log('Database deleted.');
