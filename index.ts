@@ -14,18 +14,22 @@
  * limitations under the License.
  * =============================================================================
  */
+import * as tf from '@tensorflow/tfjs';
+import Dexie from 'dexie';
 
-import * as we from './word_embedding';
+import { WordEmbedding } from './word_embedding';
 import { Visualization } from './visualization/visualization'
 const USE_3JS = true;
+const EMBEDDINGS_DIR =
+  'https://storage.googleapis.com/barbican-waterfall-of-meaning/'
+const EMBEDDINGS_WORDS_URL = EMBEDDINGS_DIR + 'embedding-words.json';
+const EMBEDDINGS_VALUES_URL = EMBEDDINGS_DIR + 'embedding-values.bin';
+const BARBICAN_DATABASE_NAME = 'barbican-database';
 
-
-const EMBEDDINGS_URL =
-  'https://storage.googleapis.com/barbican-waterfall-of-meaning/embeddings.json';
 let LEFT_AXIS_WORD = 'he';
 let RIGHT_AXIS_WORD = 'she';
 let NEIGHBOR_COUNT = 20;
-let emb: we.WordEmbedding;
+let emb: WordEmbedding;
 
 const loadingElement = document.getElementById('loading');
 const bodyElement = document.getElementById('body');
@@ -73,7 +77,7 @@ directionInputElement2.addEventListener('change', () => {
   RIGHT_AXIS_WORD = directionInputElement2.value;
 });
 
-textInputElement.addEventListener('change', () => {
+textInputElement.addEventListener('change', async () => {
   const q_word = textInputElement.value;
   // If the word is not found show the error message,
   if (emb.hasWord(q_word)) {
@@ -82,7 +86,7 @@ textInputElement.addEventListener('change', () => {
     errorElement.style.display = '';
     return;
   }
-  const dirSimilarities = emb.projectNearest(
+  const dirSimilarities = await emb.projectNearest(
     q_word, LEFT_AXIS_WORD, RIGHT_AXIS_WORD, NEIGHBOR_COUNT);
   for (let i = 0; i < dirSimilarities.length; i++) {
     let [word, similarity] = dirSimilarities[i];
@@ -142,10 +146,60 @@ function stretchValueVis(value: number): number {
 }
 
 async function setup() {
-  emb = new we.WordEmbedding(EMBEDDINGS_URL);
-  await emb.init();
+  // Check if we have an entry in the database.
+  const db = new Dexie(BARBICAN_DATABASE_NAME);
+  db.version(1).stores({ embeddings: 'words,values' });
+
+  let words: string[];
+  let embeddings: Float32Array;
+  const length = await (db as any).embeddings.count();
+  if (length == null || length == 0) {
+    console.log('Loading embeddings from the network...');
+    const wordsRequest = await fetch(EMBEDDINGS_WORDS_URL);
+    words = await wordsRequest.json();
+
+    const embeddingsRequest = await fetch(EMBEDDINGS_VALUES_URL);
+    embeddings = new Float32Array(await embeddingsRequest.arrayBuffer());
+
+    const blob = new Blob([embeddings], { type: 'octet/stream' });
+
+    await (db as any).embeddings.put({ words, values: blob });
+  } else {
+    console.log('Loading embeddings from IndexedDB cache...');
+    const results = await (db as any).embeddings.toArray();
+    words = results[0].words;
+
+    embeddings = await new Promise<Float32Array>((resolve) => {
+      const fileReader = new FileReader();
+      fileReader.onload = event =>
+        resolve(new Float32Array((event.target as any).result));
+      fileReader.readAsArrayBuffer(results[0].values);
+    });
+    await db.close();
+  }
+
+  // Round # words to closest 10th index till tfjs prime number bug is
+  // fixed.
+  let embLen = words.length;
+  if (embLen > 10000) {
+    embLen = Math.floor(embLen / 10) * 10;
+  }
+  const dimensions = embeddings.length / words.length;
+
+  const embeddingTensor = tf.tensor2d(
+    embeddings.slice(0, embLen * dimensions), [embLen, dimensions]);
+  emb = new WordEmbedding(embeddingTensor, words.slice(0, embLen));
   loadingElement.style.display = 'none';
   bodyElement.style.display = '';
 }
 
 setup();
+
+// Call this from the JavaScript console if you want to clear the IndexedDB
+// cache.
+(window as any).clearDatabase = async () => {
+  const db = new Dexie(BARBICAN_DATABASE_NAME);
+  db.version(1).stores({ embeddings: 'words,values' });
+  await db.delete();
+  console.log('Database deleted.');
+};
