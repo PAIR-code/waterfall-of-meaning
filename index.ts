@@ -16,9 +16,12 @@
  */
 
 import * as we from './word_embedding';
+import { Visualization } from './visualization/visualization'
+const USE_3JS = true;
+
 
 const EMBEDDINGS_URL =
-    'https://storage.googleapis.com/barbican-waterfall-of-meaning/embeddings.json';
+  'https://storage.googleapis.com/barbican-waterfall-of-meaning/embeddings.json';
 let LEFT_AXIS_WORD = 'he';
 let RIGHT_AXIS_WORD = 'she';
 let NEIGHBOR_COUNT = 20;
@@ -28,14 +31,22 @@ const loadingElement = document.getElementById('loading');
 const bodyElement = document.getElementById('body');
 const errorElement = document.getElementById('error');
 const directionInputElement1 =
-    document.getElementById('direction-input1') as HTMLInputElement;
+  document.getElementById('direction-input1') as HTMLInputElement;
 const directionInputElement2 =
-    document.getElementById('direction-input2') as HTMLInputElement;
+  document.getElementById('direction-input2') as HTMLInputElement;
 const textInputElement =
-    document.getElementById('word-input') as HTMLInputElement;
+  document.getElementById('word-input') as HTMLInputElement;
 const wordsContainerElement = document.getElementById('words-container');
 const numNeighborsInputElement =
-    document.getElementById('num-neighbors') as HTMLInputElement;
+  document.getElementById('num-neighbors') as HTMLInputElement;
+
+// Just throwing this constant in willy-nilly for now. Should seperate different
+// frontends at some point? But not sure how precise we really want to be here,
+// this is art after all :)
+if (USE_3JS) {
+  var vis = new Visualization();
+  document.getElementById('container').hidden = true;
+}
 
 numNeighborsInputElement.addEventListener('change', () => {
   const num_neighbors = parseInt(numNeighborsInputElement.value, 10);
@@ -72,29 +83,41 @@ textInputElement.addEventListener('change', () => {
     return;
   }
   const dirSimilarities = emb.projectNearest(
-      q_word, LEFT_AXIS_WORD, RIGHT_AXIS_WORD, NEIGHBOR_COUNT);
+    q_word, LEFT_AXIS_WORD, RIGHT_AXIS_WORD, NEIGHBOR_COUNT);
   for (let i = 0; i < dirSimilarities.length; i++) {
     let [word, similarity] = dirSimilarities[i];
-    similarity = stretchValue(similarity);
-    const color = (word == q_word) ? 'blue' : 'black';
-    const margin =
+
+    // If we want to use the 3js visualization, do that now.
+    if (USE_3JS) {
+      similarity = stretchValueVis(similarity);
+      vis.addWord(word, similarity);
+    }
+
+    // Otherwise, add the word to the other UI.
+    else {
+      similarity = stretchValue(similarity);
+      const color = (word == q_word) ? 'blue' : 'black';
+      const margin =
         Math.floor(similarity * wordsContainerElement.offsetWidth) + 'px';
-    wordsContainerElement.insertBefore(
+      wordsContainerElement.insertBefore(
         createWordDiv(word, color, margin), wordsContainerElement.firstChild);
+    }
   }
-  wordsContainerElement.insertBefore(
+  if (!USE_3JS) {
+    wordsContainerElement.insertBefore(
       createSeparator(), wordsContainerElement.firstChild);
-  // Insert direction words in middle pane in case we change directions later on
-  const wordDiv =
+    // Insert direction words in middle pane in case we change directions later on
+    const wordDiv =
       createWordDiv(LEFT_AXIS_WORD + '--->' + RIGHT_AXIS_WORD, 'red', '0px');
-  wordDiv.style.textAlign = 'center';
-  wordsContainerElement.insertBefore(wordDiv, wordsContainerElement.firstChild);
-  wordsContainerElement.insertBefore(
+    wordDiv.style.textAlign = 'center';
+    wordsContainerElement.insertBefore(wordDiv, wordsContainerElement.firstChild);
+    wordsContainerElement.insertBefore(
       createSeparator(), wordsContainerElement.firstChild);
+  }
 });
 
 function createWordDiv(
-    text: string, color: string, margin: string): HTMLDivElement {
+  text: string, color: string, margin: string): HTMLDivElement {
   const wordDiv = document.createElement('div');
   wordDiv.className = 'word-value';
   wordDiv.innerText = text;
@@ -111,6 +134,11 @@ function stretchValue(value: number): number {
   // The dot product is in [-1, 1], so we rescale it to [0, 1].
   // We stretch values between [-0.5, 0.5] to [-1, 1]
   return (1 + Math.max(Math.min(value * 2, 1.0), -1.0)) / 2;
+}
+
+function stretchValueVis(value: number): number {
+  value = Math.sign(value) * Math.pow(Math.abs(value), 1 / 2)
+  return value -= .1;
 }
 
 async function setup() {
