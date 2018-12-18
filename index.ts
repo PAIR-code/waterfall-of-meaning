@@ -31,6 +31,14 @@ let RIGHT_AXIS_WORD = 'she';
 let NEIGHBOR_COUNT = 20;
 let emb: WordEmbedding;
 
+const visAxes = [
+  ['amazing', 'terrible'],
+  ['expensive', 'cheap'],
+  ['weak', 'strong'],
+  ['he', 'she'],
+
+]
+
 const loadingElement = document.getElementById('loading');
 const bodyElement = document.getElementById('body');
 const errorElement = document.getElementById('error');
@@ -48,7 +56,7 @@ const numNeighborsInputElement =
 // frontends at some point? But not sure how precise we really want to be here,
 // this is art after all :)
 if (USE_3JS) {
-  var vis = new Visualization();
+  var vis = new Visualization(visAxes);
   document.getElementById('container').hidden = true;
 }
 
@@ -77,6 +85,20 @@ directionInputElement2.addEventListener('change', () => {
   RIGHT_AXIS_WORD = directionInputElement2.value;
 });
 
+async function projectWordsVis(word: string){
+  // Similarities for each axis.
+  const knn = await emb.nearest(word, NEIGHBOR_COUNT);
+  knn.forEach(async neighbor => {
+    const sims:number[] = [];
+    for (const axes of visAxes){
+      let sim = await emb.project(neighbor, axes[0], axes[1]);
+      sim = stretchValueVis(sim);
+      sims.push(sim);
+    };
+    vis.addWord(neighbor, sims, neighbor === word);
+  })
+}
+
 textInputElement.addEventListener('change', async () => {
   const q_word = textInputElement.value;
   // If the word is not found show the error message,
@@ -86,26 +108,22 @@ textInputElement.addEventListener('change', async () => {
     errorElement.style.display = '';
     return;
   }
+
+  projectWordsVis(q_word);
+
   const dirSimilarities = await emb.projectNearest(
     q_word, LEFT_AXIS_WORD, RIGHT_AXIS_WORD, NEIGHBOR_COUNT);
+
   for (let i = 0; i < dirSimilarities.length; i++) {
     let [word, similarity] = dirSimilarities[i];
 
-    // If we want to use the 3js visualization, do that now.
-    if (USE_3JS) {
-      similarity = stretchValueVis(similarity);
-      vis.addWord(word, similarity, word === q_word);
-    }
-
-    // Otherwise, add the word to the other UI.
-    else {
-      similarity = stretchValue(similarity);
-      const color = (word == q_word) ? 'blue' : 'black';
-      const margin =
-        Math.floor(similarity * wordsContainerElement.offsetWidth) + 'px';
-      wordsContainerElement.insertBefore(
-        createWordDiv(word, color, margin), wordsContainerElement.firstChild);
-    }
+  // Otherwise, add the word to the other UI.
+    similarity = stretchValue(similarity);
+    const color = (word == q_word) ? 'blue' : 'black';
+    const margin =
+      Math.floor(similarity * wordsContainerElement.offsetWidth) + 'px';
+    wordsContainerElement.insertBefore(
+      createWordDiv(word, color, margin), wordsContainerElement.firstChild);
   }
   if (!USE_3JS) {
     wordsContainerElement.insertBefore(
