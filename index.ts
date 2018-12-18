@@ -94,7 +94,7 @@ textInputElement.addEventListener('change', async () => {
     // If we want to use the 3js visualization, do that now.
     if (USE_3JS) {
       similarity = stretchValueVis(similarity);
-      vis.addWord(word, similarity);
+      vis.addWord(word, similarity, word === q_word);
     }
 
     // Otherwise, add the word to the other UI.
