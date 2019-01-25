@@ -17,40 +17,42 @@
 import * as tf from '@tensorflow/tfjs';
 import Dexie from 'dexie';
 
-import { WordEmbedding } from './word_embedding';
-import { Visualization } from './visualization/visualization'
+import {Visualization} from './visualization/visualization'
+import {WordEmbedding} from './word_embedding';
+
 const USE_3JS = true;
 const EMBEDDINGS_DIR =
-  'https://storage.googleapis.com/barbican-waterfall-of-meaning/'
+    'https://storage.googleapis.com/barbican-waterfall-of-meaning/'
 const EMBEDDINGS_WORDS_URL = EMBEDDINGS_DIR + 'embedding-words.json';
 const EMBEDDINGS_VALUES_URL = EMBEDDINGS_DIR + 'embedding-values.bin';
 const BARBICAN_DATABASE_NAME = 'barbican-database';
 
 let LEFT_AXIS_WORD = 'he';
 let RIGHT_AXIS_WORD = 'she';
-let NEIGHBOR_COUNT = 20;
+let NEIGHBOR_COUNT = 10;
 let emb: WordEmbedding;
+let searchId = 0;
 
-const visAxes = [
-  ['amazing', 'terrible'],
-  ['expensive', 'cheap'],
-  ['weak', 'strong'],
-  ['he', 'she'],
+const visAxes =
+    [
+      ['amazing', 'terrible'],
+      ['expensive', 'cheap'],
+      ['weak', 'strong'],
+      ['he', 'she'],
+    ]
 
-]
-
-const loadingElement = document.getElementById('loading');
+    const loadingElement = document.getElementById('loading');
 const bodyElement = document.getElementById('body');
 const errorElement = document.getElementById('error');
 const directionInputElement1 =
-  document.getElementById('direction-input1') as HTMLInputElement;
+    document.getElementById('direction-input1') as HTMLInputElement;
 const directionInputElement2 =
-  document.getElementById('direction-input2') as HTMLInputElement;
+    document.getElementById('direction-input2') as HTMLInputElement;
 const textInputElement =
-  document.getElementById('word-input') as HTMLInputElement;
+    document.getElementById('word-input') as HTMLInputElement;
 const wordsContainerElement = document.getElementById('words-container');
 const numNeighborsInputElement =
-  document.getElementById('num-neighbors') as HTMLInputElement;
+    document.getElementById('num-neighbors') as HTMLInputElement;
 
 // Just throwing this constant in willy-nilly for now. Should seperate different
 // frontends at some point? But not sure how precise we really want to be here,
@@ -85,18 +87,30 @@ directionInputElement2.addEventListener('change', () => {
   RIGHT_AXIS_WORD = directionInputElement2.value;
 });
 
-async function projectWordsVis(word: string){
+async function projectWordsVis(word: string) {
   // Similarities for each axis.
   const knn = await emb.nearest(word, NEIGHBOR_COUNT);
-  knn.forEach(async neighbor => {
-    const sims:number[] = [];
-    for (const axes of visAxes){
+
+  // We want all words in the group to be the same color. So they get an id.
+  searchId++;
+
+  // But, we want this id different from the one before it, for color variation.
+  const id = (searchId * 7) % 10;
+  for (let i = 0; i < knn.length; i++) {
+    const neighbor = knn[i];
+
+    // Each neighbor has a slightly different color (within a same color range.)
+    // The colors are ranked by similarity to the query word.
+    const colorId = Math.floor(id * 36 + i / knn.length * 70) % 360
+
+    const sims: number[] = [];
+    for (const axes of visAxes) {
       let sim = await emb.project(neighbor, axes[0], axes[1]);
       sim = stretchValueVis(sim);
       sims.push(sim);
     };
-    vis.addWord(neighbor, sims, neighbor === word);
-  })
+    vis.addWord(neighbor, sims, neighbor === word, colorId);
+  }
 }
 
 textInputElement.addEventListener('change', async () => {
@@ -112,34 +126,36 @@ textInputElement.addEventListener('change', async () => {
   projectWordsVis(q_word);
 
   const dirSimilarities = await emb.projectNearest(
-    q_word, LEFT_AXIS_WORD, RIGHT_AXIS_WORD, NEIGHBOR_COUNT);
+      q_word, LEFT_AXIS_WORD, RIGHT_AXIS_WORD, NEIGHBOR_COUNT);
 
   for (let i = 0; i < dirSimilarities.length; i++) {
     let [word, similarity] = dirSimilarities[i];
 
-  // Otherwise, add the word to the other UI.
+    // Otherwise, add the word to the other UI.
     similarity = stretchValue(similarity);
     const color = (word == q_word) ? 'blue' : 'black';
     const margin =
-      Math.floor(similarity * wordsContainerElement.offsetWidth) + 'px';
+        Math.floor(similarity * wordsContainerElement.offsetWidth) + 'px';
     wordsContainerElement.insertBefore(
-      createWordDiv(word, color, margin), wordsContainerElement.firstChild);
+        createWordDiv(word, color, margin), wordsContainerElement.firstChild);
   }
   if (!USE_3JS) {
     wordsContainerElement.insertBefore(
-      createSeparator(), wordsContainerElement.firstChild);
-    // Insert direction words in middle pane in case we change directions later on
+        createSeparator(), wordsContainerElement.firstChild);
+    // Insert direction words in middle pane in case we change directions later
+    // on
     const wordDiv =
-      createWordDiv(LEFT_AXIS_WORD + '--->' + RIGHT_AXIS_WORD, 'red', '0px');
+        createWordDiv(LEFT_AXIS_WORD + '--->' + RIGHT_AXIS_WORD, 'red', '0px');
     wordDiv.style.textAlign = 'center';
-    wordsContainerElement.insertBefore(wordDiv, wordsContainerElement.firstChild);
     wordsContainerElement.insertBefore(
-      createSeparator(), wordsContainerElement.firstChild);
+        wordDiv, wordsContainerElement.firstChild);
+    wordsContainerElement.insertBefore(
+        createSeparator(), wordsContainerElement.firstChild);
   }
 });
 
 function createWordDiv(
-  text: string, color: string, margin: string): HTMLDivElement {
+    text: string, color: string, margin: string): HTMLDivElement {
   const wordDiv = document.createElement('div');
   wordDiv.className = 'word-value';
   wordDiv.innerText = text;
@@ -159,14 +175,14 @@ function stretchValue(value: number): number {
 }
 
 function stretchValueVis(value: number): number {
-  value = Math.sign(value) * Math.pow(Math.abs(value), 1 / 2)
-  return value -= .1;
+  value = Math.sign(value) * Math.pow(Math.abs(value), 1 / 2) * 2
+  return value -= .1;  // TODO get norms for the entire dataset and subtract.
 }
 
 async function setup() {
   // Check if we have an entry in the database.
   const db = new Dexie(BARBICAN_DATABASE_NAME);
-  db.version(1).stores({ embeddings: 'words,values' });
+  db.version(1).stores({embeddings: 'words,values'});
 
   let words: string[];
   let embeddings: Float32Array;
@@ -179,9 +195,9 @@ async function setup() {
     const embeddingsRequest = await fetch(EMBEDDINGS_VALUES_URL);
     embeddings = new Float32Array(await embeddingsRequest.arrayBuffer());
 
-    const blob = new Blob([embeddings], { type: 'octet/stream' });
+    const blob = new Blob([embeddings], {type: 'octet/stream'});
 
-    await (db as any).embeddings.put({ words, values: blob });
+    await (db as any).embeddings.put({words, values: blob});
   } else {
     console.log('Loading embeddings from IndexedDB cache...');
     const results = await (db as any).embeddings.toArray();
@@ -190,7 +206,7 @@ async function setup() {
     embeddings = await new Promise<Float32Array>((resolve) => {
       const fileReader = new FileReader();
       fileReader.onload = event =>
-        resolve(new Float32Array((event.target as any).result));
+          resolve(new Float32Array((event.target as any).result));
       fileReader.readAsArrayBuffer(results[0].values);
     });
     await db.close();
@@ -205,7 +221,7 @@ async function setup() {
   const dimensions = embeddings.length / words.length;
 
   const embeddingTensor = tf.tensor2d(
-    embeddings.slice(0, embLen * dimensions), [embLen, dimensions]);
+      embeddings.slice(0, embLen * dimensions), [embLen, dimensions]);
   emb = new WordEmbedding(embeddingTensor, words.slice(0, embLen));
   loadingElement.style.display = 'none';
   bodyElement.style.display = '';
@@ -217,7 +233,7 @@ setup();
 // cache.
 (window as any).clearDatabase = async () => {
   const db = new Dexie(BARBICAN_DATABASE_NAME);
-  db.version(1).stores({ embeddings: 'words,values' });
+  db.version(1).stores({embeddings: 'words,values'});
   await db.delete();
   console.log('Database deleted.');
 };
