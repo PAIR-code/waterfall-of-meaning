@@ -1,4 +1,22 @@
-/** Composite all the scenes together. */
+/**
+ * @license
+ * Copyright 2018 Google LLC. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * =============================================================================
+ */
+
+/** Composite all the scenes together, and set up blending effects. */
+
 import * as THREE from 'three';
 import {BlendShader, CopyShader} from 'three-shaders';
 
@@ -23,6 +41,7 @@ export function makeCompositor(
   // Make our composer, and render passes.
   const composer = new EffectComposer(renderer);
   var renderTargetParameters = {
+
     // FYI: Using 'THREE.NearestMipMapNearestFilter' instead these makes rain
     // render as dots rather than blurred streaks.
     minFilter: THREE.LinearFilter,
@@ -30,15 +49,12 @@ export function makeCompositor(
     stencilBuffer: false,
   };
 
-  // Words
+  // Words passes. Render words and save.
   var renderPassWords = new RenderPass(wordScene, camera);
   var savePassWords = new SavePass(
       new THREE.WebGLRenderTarget(width, height, renderTargetParameters));
-  var blendPassWords = new ShaderPass(BlendShader(), 'tDiffuse1');
-  blendPassWords.uniforms['tDiffuse2'].value =
-      savePassWords.renderTarget.texture;
 
-  // Rain
+  // Rain passes. Render, save, and blend with the previous frame for blur.
   var renderPassRain = new RenderPass(rainScene, camera);
   var savePassRain = new SavePass(
       new THREE.WebGLRenderTarget(width, height, renderTargetParameters));

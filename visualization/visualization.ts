@@ -1,4 +1,21 @@
 /**
+ * @license
+ * Copyright 2018 Google LLC. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * =============================================================================
+ */
+
+/**
  * Master class for visualizing the words, rain, etc of the scene.  It
  * delegates to SceneCompositor for blending and the scenes.
  */
@@ -10,20 +27,31 @@ import * as utils from './utils'
 const font = require('../fonts/Raleway_Light.json');
 const axisFont = require('../fonts/Raleway_Light.json');
 
+// Width and height of DOM element.
 const ELT_WIDTH = 1000;
 const ELT_HEIGHT = 2000;
+
+// Parameters in THREEjs space.
 const TOP = ELT_HEIGHT / 5;
 const BOTTOM = 0;
-const LEFT = -ELT_WIDTH / 10;
-const RIGHT = ELT_WIDTH / 10;
+const LEFT = -TOP / 4;
+const RIGHT = TOP / 4;
 const WIDTH = RIGHT - LEFT;
+
+// For the physics!
 const DT = 3;
+
 const NUM_RAINDROPS = 1000;
 const BG_COLOR = {
   h: 217,
   s: 60,
   l: 17
-}
+};
+const AXIS_COLOR = {
+  h: 217,
+  s: 48,
+  l: 30
+};
 
 export class Visualization {
   rainGeometry: any;
@@ -58,7 +86,8 @@ export class Visualization {
 
     // Make scene that contains the inputted words.
     this.wordScene = new THREE.Scene();
-    this.wordScene.background = new THREE.Color(0X284472);
+    this.wordScene.background =
+        new THREE.Color(utils.toHSL(AXIS_COLOR.h, AXIS_COLOR.s, AXIS_COLOR.l));
 
     // Make axis words.
     for (const axis of this.axes) {
@@ -119,11 +148,15 @@ export class Visualization {
     const words = word.split(' ');
     const wordGroup = new THREE.Group();
 
-    // Make the material for the text itself
+    // The color scheme is as follows: circle, word, and trail all have the same
+    // hue. The circle and word are a lighter version (except the query word),
+    // the blur is a darker version.
     const wordColor = new THREE.Color(utils.toHSL(id, 50, 75));
     const bgColor =
         new THREE.Color(utils.toHSL(id, 50, (isQueryWord ? 10 : 75)));
     const blurColor = new THREE.Color(utils.toHSL(id, 100, 50));
+
+    // Make the material for the text itself.
     const textMaterial = new THREE.MeshBasicMaterial({
       color: wordColor,
       opacity: Math.abs(similarities[0] * 2),
@@ -172,6 +205,7 @@ export class Visualization {
     group.userData = {vel: 0, pulls: similarities};
     const startYPos = isQueryWord ? TOP : this.randomYPos();
     group.position.set(this.centerXPos(), startYPos, 0);
+
     this.wordScene.add(group);
     this.rainScene.add(blurMesh);
     this.blurs.push(blurMesh);

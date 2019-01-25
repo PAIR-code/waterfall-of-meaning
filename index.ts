@@ -20,7 +20,7 @@ import Dexie from 'dexie';
 import {Visualization} from './visualization/visualization'
 import {WordEmbedding} from './word_embedding';
 
-const USE_3JS = true;
+const USE_3JS = true;  // TODO: add as url param.
 const EMBEDDINGS_DIR =
     'https://storage.googleapis.com/barbican-waterfall-of-meaning/'
 const EMBEDDINGS_WORDS_URL = EMBEDDINGS_DIR + 'embedding-words.json';
