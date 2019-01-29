@@ -259,8 +259,6 @@ async function setup() {
       embeddings.slice(0, embLen * dimensions), [embLen, dimensions]);
   emb = new WordEmbedding(embeddingTensor, words.slice(0, embLen));
 
-  const x = await emb.computeNormForAxis(RIGHT_AXIS_WORD, LEFT_AXIS_WORD);
-
   loadingElement.style.display = 'none';
   bodyElement.style.display = '';
 }
