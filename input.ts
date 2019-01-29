@@ -17,6 +17,7 @@
 
 import Dexie from 'dexie';
 import trie from 'trie-prefix-tree';
+import * as utils from './visualization/utils';
 
 const EMBEDDINGS_DIR =
     'https://storage.googleapis.com/barbican-waterfall-of-meaning/'
@@ -34,22 +35,15 @@ let searchId = 0;
 const circle = document.getElementById('circle');
 circle.style.backgroundColor = getBgColor(0);
 
-function sleep(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-
-
+///////////////////////////////////////////////////////////////////////////////
+// Miscelaneous functions.
+///////////////////////////////////////////////////////////////////////////////
 function hideAutocomplete(hide: boolean) {
   autocomplete.style.display = hide ? 'none' : 'block';
 }
 
-main.onclick = () => {
-  hideAutocomplete(true);
-};
-
 function getBgColor(id: number) {
-  return 'hsl(' + (id * 36) % 360 + ', 50%, 75%)';
+  return utils.toHSL((id * 36) % 360, 50, 75);
 }
 
 /**
@@ -78,21 +72,16 @@ async function sendWord(word: string) {
 
   // Deal with circle animation.
   circle.classList.add('side');
-  await sleep(1000);
+  await utils.sleep(1000);
   circle.classList.remove('side');
 
   // Set the circle color to the *next* color.
   searchId++;
   circle.style.backgroundColor = getBgColor(uniqueColorFromId(searchId));
   circle.classList.add('invisible');
-  await sleep(1000);
+  await utils.sleep(1000);
   circle.classList.remove('invisible');
 }
-
-button.onclick = () => {
-  const word = textInput.value;
-  sendWord(word);
-};
 
 /**  Clear all children of an HTML element. */
 function clear(div: HTMLElement) {
@@ -100,6 +89,18 @@ function clear(div: HTMLElement) {
     div.removeChild(div.firstChild);
   }
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// Click handlers.
+///////////////////////////////////////////////////////////////////////////////
+button.onclick = () => {
+  const word = textInput.value;
+  sendWord(word);
+};
+
+main.onclick = () => {
+  hideAutocomplete(true);
+};
 
 /**
  * For dealing with the user typing in the input box.

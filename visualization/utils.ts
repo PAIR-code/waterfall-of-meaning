@@ -51,3 +51,7 @@ export function toHSL(h: number, s: number, l: number) {
 export function lerp(lerpVal: number, low: number, high: number) {
   return low * lerpVal + high * (1 - lerpVal);
 }
+
+export function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}

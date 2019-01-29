@@ -175,7 +175,7 @@ async function showResults() {
 
 textInputElement.addEventListener('change', showResults);
 
-var bc = new BroadcastChannel('word_flow_channel');
+let bc = new BroadcastChannel('word_flow_channel');
 bc.onmessage = function(message) {
   projectWordsVis(message.data.word, message.data.colorId);
 };
