@@ -32,16 +32,16 @@ let RIGHT_AXIS_WORD = 'she';
 let NEIGHBOR_COUNT = 10;
 let emb: WordEmbedding;
 let searchId = 0;
+let vis: Visualization;
 
-const visAxes =
-    [
-      ['amazing', 'terrible'],
-      ['expensive', 'cheap'],
-      ['weak', 'strong'],
-      ['he', 'she'],
-    ]
+const visAxes = [
+  ['amazing', 'terrible'],
+  ['expensive', 'cheap'],
+  ['weak', 'strong'],
+  ['he', 'she'],
+];
 
-    const loadingElement = document.getElementById('loading');
+const loadingElement = document.getElementById('loading');
 const bodyElement = document.getElementById('body');
 const errorElement = document.getElementById('error');
 const directionInputElement1 =
@@ -58,7 +58,7 @@ const numNeighborsInputElement =
 // frontends at some point? But not sure how precise we really want to be here,
 // this is art after all :)
 if (USE_3JS) {
-  var vis = new Visualization(visAxes);
+  vis = new Visualization(visAxes);
   document.getElementById('container').hidden = true;
 }
 
@@ -95,12 +95,20 @@ async function projectWordsVis(word: string) {
   searchId++;
 
   // But, we want this id different from the one before it, for color variation.
+  // Searchid is being incremented by 1 each time, but but we want
+  // the color to be visually distinct from the one before). So, since 7 and 10
+  // are relatively prime, this modulo operation will generate a sequence of
+  // different colors that are not close to each other and circles through all
+  // colors.
   const id = (searchId * 7) % 10;
   for (let i = 0; i < knn.length; i++) {
     const neighbor = knn[i];
 
     // Each neighbor has a slightly different color (within a same color range.)
     // The colors are ranked by similarity to the query word.
+    // This color will be a hue (for an hsl color.) So, the id is multiplied by
+    // 36 to put it in range of 0-360 (the range for a hue.) Then, we add a bit
+    // of color variation up through + 70 of the hue.
     const colorId = Math.floor(id * 36 + i / knn.length * 70) % 360
 
     const sims: number[] = [];
@@ -108,32 +116,32 @@ async function projectWordsVis(word: string) {
       let sim = await emb.project(neighbor, axes[0], axes[1]);
       sim = stretchValueVis(sim);
       sims.push(sim);
-    };
-    vis.addWord(neighbor, sims, neighbor === word, colorId);
+    }
+    vis.addWord(neighbor, sims, neighbor === word, colorId, i);
   }
 }
 
 textInputElement.addEventListener('change', async () => {
-  const q_word = textInputElement.value;
+  const qWord = textInputElement.value;
   // If the word is not found show the error message,
-  if (emb.hasWord(q_word)) {
+  if (emb.hasWord(qWord)) {
     errorElement.style.display = 'none';
   } else {
     errorElement.style.display = '';
     return;
   }
 
-  projectWordsVis(q_word);
+  projectWordsVis(qWord);
 
   const dirSimilarities = await emb.projectNearest(
-      q_word, LEFT_AXIS_WORD, RIGHT_AXIS_WORD, NEIGHBOR_COUNT);
+      qWord, LEFT_AXIS_WORD, RIGHT_AXIS_WORD, NEIGHBOR_COUNT);
 
   for (let i = 0; i < dirSimilarities.length; i++) {
     let [word, similarity] = dirSimilarities[i];
 
     // Otherwise, add the word to the other UI.
     similarity = stretchValue(similarity);
-    const color = (word == q_word) ? 'blue' : 'black';
+    const color = (word == qWord) ? 'blue' : 'black';
     const margin =
         Math.floor(similarity * wordsContainerElement.offsetWidth) + 'px';
     wordsContainerElement.insertBefore(

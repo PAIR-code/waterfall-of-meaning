@@ -40,7 +40,6 @@ const WIDTH = RIGHT - LEFT;
 
 // For the physics!
 const DT = 3;
-
 const NUM_RAINDROPS = 1000;
 const BG_COLOR = {
   h: 217,
@@ -74,14 +73,13 @@ export class Visualization {
   /** Create and set up the visualization. */
   private init() {
     this.font = new THREE.Font(font);
-    this.axisFont = new THREE
-                        .Font(axisFont)
+    this.axisFont = new THREE.Font(axisFont);
 
-                    // Save some axis/ypos offline to speed up frame rate.
-                    this.precomputeAxesYPos()
+    // Save some axis/ypos offline to speed up frame rate.
+    this.precomputeAxesYPos()
 
-                    // Make scene that contains the rain.
-                    this.rainScene = new THREE.Scene();
+        // Make scene that contains the rain.
+        this.rainScene = new THREE.Scene();
     this.makeRain();
 
     // Make scene that contains the inputted words.
@@ -90,9 +88,9 @@ export class Visualization {
         new THREE.Color(utils.toHSL(AXIS_COLOR.h, AXIS_COLOR.s, AXIS_COLOR.l));
 
     // Make axis words.
-    for (const axis of this.axes) {
+    this.axes.forEach(axis => {
       this.makeAxisWord(axis);
-    }
+    });
 
     // Add camera and renderer, which
     const camera =
@@ -119,9 +117,11 @@ export class Visualization {
    *
    */
   addWord(
-      word: string, similarities: number[], isQueryWord: boolean, id: number) {
+      word: string, similarities: number[], isQueryWord: boolean,
+      colorId: number, idxFromQuery: number) {
     word = word.replace('_', ' ');
-    this.words.push(this.makeWord(word, similarities, isQueryWord, id));
+    this.words.push(
+        this.makeWord(word, similarities, isQueryWord, colorId, idxFromQuery));
   }
 
   /** Animation loop. Updates positions and rerenders. */
@@ -143,7 +143,8 @@ export class Visualization {
    * @param isQueryWord Was this the original query word that the user typed in?
    */
   private makeWord(
-      word: string, similarities: number[], isQueryWord: boolean, id: number) {
+      word: string, similarities: number[], isQueryWord: boolean, id: number, ,
+      idxFromQuery: number) {
     const circleRad = 2;
     const words = word.split(' ');
     const wordGroup = new THREE.Group();
@@ -153,9 +154,8 @@ export class Visualization {
     // the blur is a darker version.
     const wordColor = new THREE.Color(utils.toHSL(id, 50, 75));
     const bgColor =
-        new THREE.Color(utils.toHSL(id, 50, (isQueryWord ? 10 : 75)));
+        new THREE.Color(utils.toHSL(id, 50, (isQueryWord ? 10 : 10)));
     const blurColor = new THREE.Color(utils.toHSL(id, 100, 50));
-
     // Make the material for the text itself.
     const textMaterial = new THREE.MeshBasicMaterial({
       color: wordColor,
@@ -203,12 +203,14 @@ export class Visualization {
     group.add(wordGroup);
     group.add(circle);
     group.userData = {vel: 0, pulls: similarities};
-    const startYPos = isQueryWord ? TOP : this.randomYPos();
+    const startYPos = isQueryWord ? TOP : TOP + idxFromQuery * 30;
     group.position.set(this.centerXPos(), startYPos, 0);
 
     this.wordScene.add(group);
     this.rainScene.add(blurMesh);
     this.blurs.push(blurMesh);
+
+
     return group;
   }
 
@@ -216,7 +218,6 @@ export class Visualization {
   private makeRain() {
     this.rainGeometry = new THREE.Geometry();
     const sprite = utils.makeSprite()
-
     for (var i = 0; i < NUM_RAINDROPS; i++) {
       var x = this.randomXPos();
       var y = this.randomRainYPos();
@@ -374,7 +375,6 @@ export class Visualization {
     if (!Array.isArray(obj.material)) {
       obj.material.dispose();
     }
-    obj = undefined;
   }
 
   /**
@@ -431,14 +431,6 @@ export class Visualization {
   /** Center, in THREE js units, along the x axis. */
   private centerXPos() {
     return (RIGHT - LEFT) / 2 - RIGHT;
-  }
-
-  /**
-   * Randomn position in y, in THREE js units, *above* the top of the viewport.
-   * Used for generating word locations before they fall.
-   */
-  private randomYPos() {
-    return TOP + 2 * TOP * Math.random();
   }
 
   /** Randomn position, in THREE js units, along the y axis. */
