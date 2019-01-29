@@ -29,14 +29,16 @@ const button =
 const textInput = <HTMLInputElement>document.getElementById('wordInput');
 const autocomplete = document.getElementById('autocomplete');
 const main = document.getElementById('main');
+let prefixTrie: trie;
+let searchId = 0;
 const circle = document.getElementById('circle');
-circle.style.backgroundColor = getNewBackgroundColor();
+circle.style.backgroundColor = getBgColor(0);
 
 function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-let prefixTrie: trie;
+
 
 function hideAutocomplete(hide: boolean) {
   autocomplete.style.display = hide ? 'none' : 'block';
@@ -46,8 +48,20 @@ main.onclick = () => {
   hideAutocomplete(true);
 };
 
-function getNewBackgroundColor() {
-  return 'hsl(' + Math.random() * 360 + ', 50%, 75%)';
+function getBgColor(id: number) {
+  return 'hsl(' + (id * 36) % 360 + ', 50%, 75%)';
+}
+
+/**
+ * We want all words in the group to be the same color. So they get an
+ * id. But, we want this id different from the one before it, for color
+ * variation. Searchid is being incremented by 1 each time, but but we want the
+ * color to be visually distinct from the one before). So, since 7 and 10 are
+ * relatively prime, this modulo operation will generate a sequence of different
+ * colors that are not close to each other and circles through all colors.
+ */
+function uniqueColorFromId(id: number) {
+  return (searchId * 7) % 10;
 }
 
 /**
@@ -56,7 +70,9 @@ function getNewBackgroundColor() {
  */
 async function sendWord(word: string) {
   word = word.replace(' ', '_');
-  bc.postMessage(word);
+
+  const message = {'word': word, 'colorId': uniqueColorFromId(searchId)};
+  bc.postMessage(message);
   textInput.value = '';
   button.setAttribute('disabled', 'true');
 
@@ -64,7 +80,10 @@ async function sendWord(word: string) {
   circle.classList.add('side');
   await sleep(1000);
   circle.classList.remove('side');
-  circle.style.backgroundColor = getNewBackgroundColor();
+
+  // Set the circle color to the *next* color.
+  searchId++;
+  circle.style.backgroundColor = getBgColor(uniqueColorFromId(searchId));
   circle.classList.add('invisible');
   await sleep(1000);
   circle.classList.remove('invisible');
@@ -81,7 +100,6 @@ function clear(div: HTMLElement) {
     div.removeChild(div.firstChild);
   }
 }
-
 
 /**
  * For dealing with the user typing in the input box.
@@ -103,7 +121,7 @@ textInput.onkeyup = (ev: KeyboardEvent) => {
     if (prefixTrie.hasWord(letters)) {
       button.removeAttribute('disabled');
     } else {
-      button.setAttribute('disabled', true);
+      button.setAttribute('disabled', 'true');
     }
 
     // Show all the potential words that start with this substring.

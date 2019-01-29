@@ -20,7 +20,6 @@ import Dexie from 'dexie';
 import {Visualization} from './visualization/visualization'
 import {WordEmbedding} from './word_embedding';
 
-const USE_3JS = true;  // TODO: add as url param.
 const EMBEDDINGS_DIR =
     'https://storage.googleapis.com/barbican-waterfall-of-meaning/'
 const EMBEDDINGS_WORDS_URL = EMBEDDINGS_DIR + 'embedding-words.json';
@@ -43,15 +42,12 @@ function parseURL(): {[id: string]: string;} {
   return {};
 }
 
-const params = parseURL();
-
-
-
+// Use threejs by default and allow for url param to use other UI in setup().
+let USE_3JS = true;
 let LEFT_AXIS_WORD = 'he';
 let RIGHT_AXIS_WORD = 'she';
 let NEIGHBOR_COUNT = 10;
 let emb: WordEmbedding;
-let searchId = 0;
 let vis: Visualization;
 
 const visAxes = [
@@ -107,20 +103,10 @@ directionInputElement2.addEventListener('change', () => {
   RIGHT_AXIS_WORD = directionInputElement2.value;
 });
 
-async function projectWordsVis(word: string) {
+async function projectWordsVis(word: string, id: number) {
   // Similarities for each axis.
   const knn = await emb.nearest(word, NEIGHBOR_COUNT);
 
-  // We want all words in the group to be the same color. So they get an id.
-  searchId++;
-
-  // But, we want this id different from the one before it, for color variation.
-  // Searchid is being incremented by 1 each time, but but we want
-  // the color to be visually distinct from the one before). So, since 7 and 10
-  // are relatively prime, this modulo operation will generate a sequence of
-  // different colors that are not close to each other and circles through all
-  // colors.
-  const id = (searchId * 7) % 10;
   for (let i = 0; i < knn.length; i++) {
     const neighbor = knn[i];
 
@@ -141,7 +127,8 @@ async function projectWordsVis(word: string) {
   }
 }
 
-textInputElement.addEventListener('change', async () => {
+/** Show results, either with the 3js UI or the standard UI. */
+async function showResults() {
   const qWord = textInputElement.value;
   // If the word is not found show the error message,
   if (emb.hasWord(qWord)) {
@@ -151,27 +138,31 @@ textInputElement.addEventListener('change', async () => {
     return;
   }
 
-  projectWordsVis(qWord);
-
-  const dirSimilarities = await emb.projectNearest(
-      qWord, LEFT_AXIS_WORD, RIGHT_AXIS_WORD, NEIGHBOR_COUNT);
-
-  for (let i = 0; i < dirSimilarities.length; i++) {
-    let [word, similarity] = dirSimilarities[i];
-
-    // Otherwise, add the word to the other UI.
-    similarity = stretchValue(similarity);
-    const color = (word == qWord) ? 'blue' : 'black';
-    const margin =
-        Math.floor(similarity * wordsContainerElement.offsetWidth) + 'px';
-    wordsContainerElement.insertBefore(
-        createWordDiv(word, color, margin), wordsContainerElement.firstChild);
+  // Show the results with the 3js UI.
+  if (USE_3JS) {
+    projectWordsVis(qWord, Math.random() * 360);
   }
-  if (!USE_3JS) {
+  // Show results with the other UI.
+  else {
+    const dirSimilarities = await emb.projectNearest(
+        qWord, LEFT_AXIS_WORD, RIGHT_AXIS_WORD, NEIGHBOR_COUNT);
+
+    for (let i = 0; i < dirSimilarities.length; i++) {
+      let [word, similarity] = dirSimilarities[i];
+
+      // Otherwise, add the word to the other UI.
+      similarity = stretchValue(similarity);
+      const color = (word == qWord) ? 'blue' : 'black';
+      const margin =
+          Math.floor(similarity * wordsContainerElement.offsetWidth) + 'px';
+      wordsContainerElement.insertBefore(
+          createWordDiv(word, color, margin), wordsContainerElement.firstChild);
+    }
     wordsContainerElement.insertBefore(
         createSeparator(), wordsContainerElement.firstChild);
-    // Insert direction words in middle pane in case we change directions later
-    // on
+
+    // Insert direction words in middle pane in case we change directions
+    // later on
     const wordDiv =
         createWordDiv(LEFT_AXIS_WORD + '--->' + RIGHT_AXIS_WORD, 'red', '0px');
     wordDiv.style.textAlign = 'center';
@@ -180,12 +171,13 @@ textInputElement.addEventListener('change', async () => {
     wordsContainerElement.insertBefore(
         createSeparator(), wordsContainerElement.firstChild);
   }
-});
+}
+
+textInputElement.addEventListener('change', showResults);
 
 var bc = new BroadcastChannel('word_flow_channel');
 bc.onmessage = function(message) {
-  console.log(message.data);
-  projectWordsVis(message.data);
+  projectWordsVis(message.data.word, message.data.colorId);
 };
 
 
@@ -261,6 +253,18 @@ async function setup() {
 
   loadingElement.style.display = 'none';
   bodyElement.style.display = '';
+
+
+  // Parse the params and adjust accordingly.
+  const params = parseURL();
+  if ('3js' in params) {
+    USE_3JS = (params['3js'] === 'true');
+  }
+
+  // If it's specified to only use the seperate UI, hide the bar at the top.
+  if (('hideInput' in params) && (params['hideInput'] === 'true')) {
+    bodyElement.style.display = 'none';
+  }
 }
 
 setup();
