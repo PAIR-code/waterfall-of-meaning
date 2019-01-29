@@ -25,6 +25,26 @@ const EMBEDDINGS_WORDS_URL = EMBEDDINGS_DIR + 'embedding-words.json';
 const EMBEDDINGS_VALUES_URL = EMBEDDINGS_DIR + 'embedding-values.bin';
 const BARBICAN_DATABASE_NAME = 'barbican-database';
 
+/** Parse the url into params. */
+function parseURL(): {[id: string]: string;} {
+  const url = window.location.href;
+  let paramsArr = url.split('#');
+  if (paramsArr.length > 1) {
+    paramsArr = paramsArr[1].split('&');
+    const params: {[id: string]: string;} = {};
+    for (let i = 0; i < paramsArr.length; i++) {
+      const keyval = paramsArr[i].split('=');
+      params[keyval[0]] = keyval[1];
+    }
+    return params;
+  }
+  return {};
+}
+
+const params = parseURL();
+
+
+
 let LEFT_AXIS_WORD = 'he';
 let RIGHT_AXIS_WORD = 'she';
 let NEIGHBOR_COUNT = 20;
@@ -68,8 +88,7 @@ directionInputElement2.addEventListener('change', () => {
   RIGHT_AXIS_WORD = directionInputElement2.value;
 });
 
-textInputElement.addEventListener('change', async () => {
-  const q_word = textInputElement.value;
+async function inputWord(q_word: string) {
   // If the word is not found show the error message,
   if (emb.hasWord(q_word)) {
     errorElement.style.display = 'none';
@@ -77,8 +96,10 @@ textInputElement.addEventListener('change', async () => {
     errorElement.style.display = '';
     return;
   }
+
   const dirSimilarities = await emb.projectNearest(
       q_word, LEFT_AXIS_WORD, RIGHT_AXIS_WORD, NEIGHBOR_COUNT);
+
   for (let i = 0; i < dirSimilarities.length; i++) {
     let [word, similarity] = dirSimilarities[i];
     similarity = stretchValue(similarity);
@@ -97,7 +118,19 @@ textInputElement.addEventListener('change', async () => {
   wordsContainerElement.insertBefore(wordDiv, wordsContainerElement.firstChild);
   wordsContainerElement.insertBefore(
       createSeparator(), wordsContainerElement.firstChild);
+};
+
+textInputElement.addEventListener('change', () => {
+  const q_word = textInputElement.value;
+  inputWord(q_word);
 });
+
+var bc = new BroadcastChannel('word_flow_channel');
+bc.onmessage = function(message) {
+  console.log(message.data);
+  inputWord(message.data);
+};
+
 
 function createWordDiv(
     text: string, color: string, margin: string): HTMLDivElement {
@@ -163,6 +196,9 @@ async function setup() {
   const embeddingTensor = tf.tensor2d(
       embeddings.slice(0, embLen * dimensions), [embLen, dimensions]);
   emb = new WordEmbedding(embeddingTensor, words.slice(0, embLen));
+
+  const x = await emb.computeNormForAxis(RIGHT_AXIS_WORD, LEFT_AXIS_WORD);
+
   loadingElement.style.display = 'none';
   bodyElement.style.display = '';
 }

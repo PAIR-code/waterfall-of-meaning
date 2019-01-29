@@ -35,6 +35,21 @@ export class WordEmbedding {
     return this.words.indexOf(word) != -1;
   }
 
+  /**
+   * Computes the average of the values of every word in the dictionary along
+   * the axis. This is for adding a bias term when actually projecting later.
+   * @param word1
+   * @param word2
+   */
+  computeNormForAxis(word1: string, word2: string) {
+    return tf.tidy(() => {
+      const direction = this.computeBiasDirection(word1, word2);
+      const biases = tf.matMul(
+          tf.expandDims(direction), this.embeddingTensor, false, true);
+      return biases.mean();
+    })
+  }
+
   computeBiasDirection(word1: string, word2: string): tf.Tensor1D {
     return tf.tidy(() => {
       const leftAxisWordTensor = this.getEmbedding(word1);
@@ -89,7 +104,7 @@ export class WordEmbedding {
       const sim = await this.project(word, axisLeft, axisRight);
       dirSimilarities.push([word, sim]);
     }
-    // Sort words w.r.t. their direction similarity
+    // Sort words w.r.t.their direction similarity
     dirSimilarities.sort((left, right) => {return left[1] < right[1] ? -1 : 1});
     return dirSimilarities;
   }
