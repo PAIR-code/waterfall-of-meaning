@@ -17,6 +17,7 @@
 
 /** Utils for visualization.ts */
 
+import Dexie from 'dexie';
 import * as THREE from 'three';
 
 /** Is the y value near the top value? (Within 10.) */
@@ -54,4 +55,40 @@ export function lerp(lerpVal: number, low: number, high: number) {
 
 export function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export async function loadDatabase(
+    embUrl: string, embWordUrl: string, embValUrl: string) {
+  // Check if we have an entry in the database.
+  const db = new Dexie(embUrl);
+  db.version(1).stores({embeddings: 'words,values'});
+
+  let words: string[];
+  let embeddings: Float32Array;
+  const length = await (db as any).embeddings.count();
+  if (length == null || length == 0) {
+    console.log('Loading embeddings from the network...');
+    const wordsRequest = await fetch(embWordUrl);
+    words = await wordsRequest.json();
+
+    const embeddingsRequest = await fetch(embValUrl);
+    embeddings = new Float32Array(await embeddingsRequest.arrayBuffer());
+
+    const blob = new Blob([embeddings], {type: 'octet/stream'});
+
+    await (db as any).embeddings.put({words, values: blob});
+  } else {
+    console.log('Loading embeddings from IndexedDB cache...');
+    const results = await (db as any).embeddings.toArray();
+    words = results[0].words;
+
+    embeddings = await new Promise<Float32Array>((resolve) => {
+      const fileReader = new FileReader();
+      fileReader.onload = event =>
+          resolve(new Float32Array((event.target as any).result));
+      fileReader.readAsArrayBuffer(results[0].values);
+    });
+    await db.close();
+  }
+  return {words, embeddings};
 }

@@ -17,6 +17,7 @@
 import * as tf from '@tensorflow/tfjs';
 import Dexie from 'dexie';
 
+import * as utils from './visualization/utils';
 import {Visualization} from './visualization/visualization'
 import {WordEmbedding} from './word_embedding';
 
@@ -175,11 +176,9 @@ async function showResults() {
 
 textInputElement.addEventListener('change', showResults);
 
-let bc = new BroadcastChannel('word_flow_channel');
-bc.onmessage = function(message) {
-  projectWordsVis(message.data.word, message.data.colorId);
-};
-
+const bc = new BroadcastChannel('word_flow_channel');
+bc.onmessage = message =>
+    projectWordsVis(message.data.word, message.data.colorId);
 
 function createWordDiv(
     text: string, color: string, margin: string): HTMLDivElement {
@@ -207,38 +206,11 @@ function stretchValueVis(value: number): number {
 }
 
 async function setup() {
-  // Check if we have an entry in the database.
-  const db = new Dexie(BARBICAN_DATABASE_NAME);
-  db.version(1).stores({embeddings: 'words,values'});
+  const data = await utils.loadDatabase(
+      EMBEDDINGS_DIR, EMBEDDINGS_WORDS_URL, EMBEDDINGS_VALUES_URL);
 
-  let words: string[];
-  let embeddings: Float32Array;
-  const length = await (db as any).embeddings.count();
-  if (length == null || length == 0) {
-    console.log('Loading embeddings from the network...');
-    const wordsRequest = await fetch(EMBEDDINGS_WORDS_URL);
-    words = await wordsRequest.json();
-
-    const embeddingsRequest = await fetch(EMBEDDINGS_VALUES_URL);
-    embeddings = new Float32Array(await embeddingsRequest.arrayBuffer());
-
-    const blob = new Blob([embeddings], {type: 'octet/stream'});
-
-    await (db as any).embeddings.put({words, values: blob});
-  } else {
-    console.log('Loading embeddings from IndexedDB cache...');
-    const results = await (db as any).embeddings.toArray();
-    words = results[0].words;
-
-    embeddings = await new Promise<Float32Array>((resolve) => {
-      const fileReader = new FileReader();
-      fileReader.onload = event =>
-          resolve(new Float32Array((event.target as any).result));
-      fileReader.readAsArrayBuffer(results[0].values);
-    });
-    await db.close();
-  }
-
+  const words = data.words;
+  const embeddings = data.embeddings;
   // Round # words to closest 10th index till tfjs prime number bug is
   // fixed.
   let embLen = words.length;

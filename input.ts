@@ -22,6 +22,7 @@ import * as utils from './visualization/utils';
 const EMBEDDINGS_DIR =
     'https://storage.googleapis.com/barbican-waterfall-of-meaning/'
 const EMBEDDINGS_WORDS_URL = EMBEDDINGS_DIR + 'embedding-words.json';
+const EMBEDDINGS_VALUES_URL = EMBEDDINGS_DIR + 'embedding-values.bin';
 const BARBICAN_DATABASE_NAME = 'barbican-database';
 const bc = new BroadcastChannel('word_flow_channel');
 
@@ -98,9 +99,7 @@ button.onclick = () => {
   sendWord(word);
 };
 
-main.onclick = () => {
-  hideAutocomplete(true);
-};
+main.onclick = () => hideAutocomplete(true);
 
 /**
  * For dealing with the user typing in the input box.
@@ -114,10 +113,10 @@ textInput.onkeyup = (ev: KeyboardEvent) => {
   if (ev.which === 13 && prefixTrie.hasWord(letters)) {
     hideAutocomplete(true);
     sendWord(letters);
-  } else
+  }
 
   // Otherwise, show the autocomplete list.
-  {
+  else {
     // Enable or disable button, depending on if the word is allowed.
     if (prefixTrie.hasWord(letters)) {
       button.removeAttribute('disabled');
@@ -153,34 +152,15 @@ textInput.onkeyup = (ev: KeyboardEvent) => {
 // Load the embeddings from the database. TODO: probably combine this with the
 // other one.
 async function setup() {
-  // Check if we have an entry in the database.
-  const db = new Dexie(BARBICAN_DATABASE_NAME);
-  db.version(1).stores({embeddings: 'words,values'});
-  console.log(db)
-  let words: string[];
-  const length = await (db as any).embeddings.count();
-  if (length == null || length == 0) {
-    console.log('Loading embeddings from the network...');
-    const wordsRequest = await fetch(EMBEDDINGS_WORDS_URL);
-    words = await wordsRequest.json();
-  } else {
-    console.log('Loading embeddings from IndexedDB cache...');
-    const results = await (db as any).embeddings.toArray();
-    words = results[0].words;
-    await db.close();
-  }
+  const data = await utils.loadDatabase(
+      EMBEDDINGS_DIR, EMBEDDINGS_WORDS_URL, EMBEDDINGS_VALUES_URL);
+
+  const words = data.words;
   // Make prefix tree.
   for (let i = 0; i < words.length; i++) {
     words[i] = words[i].replace('_', ' ');
   }
   prefixTrie = trie(words);
-
-  // Round # words to closest 10th index till tfjs prime number bug is
-  // fixed.
-  let embLen = words.length;
-  if (embLen > 10000) {
-    embLen = Math.floor(embLen / 10) * 10;
-  }
 }
 
 setup();
