@@ -50,34 +50,42 @@ export function makeCompositor(
   };
 
   // Words passes. Render words and save.
-  var renderPassWords = new RenderPass(wordScene, camera);
-  var savePassWords = new SavePass(
+  var renderPassWords = new RenderPass(
+      wordScene, camera, undefined, undefined, undefined,
       new THREE.WebGLRenderTarget(width, height, renderTargetParameters));
+  // var savePassWords = new SavePass(
+  //     new THREE.WebGLRenderTarget(width, height, renderTargetParameters));
 
   // Rain passes. Render, save, and blend with the previous frame for blur.
-  var renderPassRain = new RenderPass(rainScene, camera);
-  var savePassRain = new SavePass(
+  var renderPassRain = new RenderPass(
+      rainScene, camera, undefined, undefined, undefined,
       new THREE.WebGLRenderTarget(width, height, renderTargetParameters));
+  // var savePassRain = new SavePass(
+  //     new THREE.WebGLRenderTarget(width, height, renderTargetParameters));
+  // savePassRain.uniforms['tDiffuse'].value =
+  // renderPassRain.renderTarget.texture;
   var blendPassRain = new ShaderPass(RainBlendShader, 'tDiffuse1');
-  blendPassRain.uniforms['tDiffuse2'].value = savePassRain.renderTarget.texture;
+  blendPassRain.uniforms['tDiffuse2'].value =
+      renderPassRain.renderTarget.texture;
 
   // Blend EVERYTHING together
   var blendPass = new ShaderPass(SceneBlender, 'tDiffuse1');
-  blendPass.uniforms['tDiffuse2'].value = savePassWords.renderTarget.texture;
+  blendPass.uniforms['tDiffuse1'].value = renderPassRain.renderTarget.texture;
+  blendPass.uniforms['tDiffuse2'].value = renderPassWords.renderTarget.texture;
 
   // output pass
-  var outputPass = new ShaderPass(CopyShader());
-  outputPass.renderToScreen = true;
+  // var outputPass = new ShaderPass(CopyShader());
+  blendPass.renderToScreen = true;
 
   // Composite everything together (order matters here!)
-  composer.addPass(renderPassWords);
-  composer.addPass(savePassWords);
-
   composer.addPass(renderPassRain);
   composer.addPass(blendPassRain);
-  composer.addPass(savePassRain);
+  // composer.addPass(savePassRain);
+
+  composer.addPass(renderPassWords);
+  // composer.addPass(savePassWords);
 
   composer.addPass(blendPass);
-  composer.addPass(outputPass);
+  // composer.addPass(outputPass);
   return composer;
 }
