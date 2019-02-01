@@ -89,7 +89,7 @@ export class WordEmbedding {
       const sim = await this.project(word, axisLeft, axisRight);
       dirSimilarities.push([word, sim]);
     }
-    // Sort words w.r.t. their direction similarity
+    // Sort words w.r.t.their direction similarity
     dirSimilarities.sort((left, right) => {return left[1] < right[1] ? -1 : 1});
     return dirSimilarities;
   }
