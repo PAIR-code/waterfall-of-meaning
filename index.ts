@@ -17,21 +17,38 @@
 import * as tf from '@tensorflow/tfjs';
 import Dexie from 'dexie';
 
+import * as utils from './visualization/utils';
 import {Visualization} from './visualization/visualization'
 import {WordEmbedding} from './word_embedding';
 
-const USE_3JS = true;  // TODO: add as url param.
 const EMBEDDINGS_DIR =
     'https://storage.googleapis.com/barbican-waterfall-of-meaning/'
 const EMBEDDINGS_WORDS_URL = EMBEDDINGS_DIR + 'embedding-words.json';
 const EMBEDDINGS_VALUES_URL = EMBEDDINGS_DIR + 'embedding-values.bin';
 const BARBICAN_DATABASE_NAME = 'barbican-database';
 
+/** Parse the url into params. */
+function parseURL(): {[id: string]: string;} {
+  const url = window.location.href;
+  let paramsArr = url.split('#');
+  if (paramsArr.length > 1) {
+    paramsArr = paramsArr[1].split('&');
+    const params: {[id: string]: string;} = {};
+    for (let i = 0; i < paramsArr.length; i++) {
+      const keyval = paramsArr[i].split('=');
+      params[keyval[0]] = keyval[1];
+    }
+    return params;
+  }
+  return {};
+}
+
+// Use threejs by default and allow for url param to use other UI in setup().
+let USE_3JS = true;
 let LEFT_AXIS_WORD = 'he';
 let RIGHT_AXIS_WORD = 'she';
 let NEIGHBOR_COUNT = 10;
 let emb: WordEmbedding;
-let searchId = 0;
 let vis: Visualization;
 
 const visAxes = [
@@ -87,20 +104,10 @@ directionInputElement2.addEventListener('change', () => {
   RIGHT_AXIS_WORD = directionInputElement2.value;
 });
 
-async function projectWordsVis(word: string) {
+async function projectWordsVis(word: string, id: number) {
   // Similarities for each axis.
   const knn = await emb.nearest(word, NEIGHBOR_COUNT);
 
-  // We want all words in the group to be the same color. So they get an id.
-  searchId++;
-
-  // But, we want this id different from the one before it, for color variation.
-  // Searchid is being incremented by 1 each time, but but we want
-  // the color to be visually distinct from the one before). So, since 7 and 10
-  // are relatively prime, this modulo operation will generate a sequence of
-  // different colors that are not close to each other and circles through all
-  // colors.
-  const id = (searchId * 7) % 10;
   for (let i = 0; i < knn.length; i++) {
     const neighbor = knn[i];
 
@@ -121,7 +128,8 @@ async function projectWordsVis(word: string) {
   }
 }
 
-textInputElement.addEventListener('change', async () => {
+/** Show results, either with the 3js UI or the standard UI. */
+async function showResults() {
   const qWord = textInputElement.value;
   // If the word is not found show the error message,
   if (emb.hasWord(qWord)) {
@@ -131,27 +139,31 @@ textInputElement.addEventListener('change', async () => {
     return;
   }
 
-  projectWordsVis(qWord);
-
-  const dirSimilarities = await emb.projectNearest(
-      qWord, LEFT_AXIS_WORD, RIGHT_AXIS_WORD, NEIGHBOR_COUNT);
-
-  for (let i = 0; i < dirSimilarities.length; i++) {
-    let [word, similarity] = dirSimilarities[i];
-
-    // Otherwise, add the word to the other UI.
-    similarity = stretchValue(similarity);
-    const color = (word == qWord) ? 'blue' : 'black';
-    const margin =
-        Math.floor(similarity * wordsContainerElement.offsetWidth) + 'px';
-    wordsContainerElement.insertBefore(
-        createWordDiv(word, color, margin), wordsContainerElement.firstChild);
+  // Show the results with the 3js UI.
+  if (USE_3JS) {
+    projectWordsVis(qWord, Math.random() * 360);
   }
-  if (!USE_3JS) {
+  // Show results with the other UI.
+  else {
+    const dirSimilarities = await emb.projectNearest(
+        qWord, LEFT_AXIS_WORD, RIGHT_AXIS_WORD, NEIGHBOR_COUNT);
+
+    for (let i = 0; i < dirSimilarities.length; i++) {
+      let [word, similarity] = dirSimilarities[i];
+
+      // Otherwise, add the word to the other UI.
+      similarity = stretchValue(similarity);
+      const color = (word == qWord) ? 'blue' : 'black';
+      const margin =
+          Math.floor(similarity * wordsContainerElement.offsetWidth) + 'px';
+      wordsContainerElement.insertBefore(
+          createWordDiv(word, color, margin), wordsContainerElement.firstChild);
+    }
     wordsContainerElement.insertBefore(
         createSeparator(), wordsContainerElement.firstChild);
-    // Insert direction words in middle pane in case we change directions later
-    // on
+
+    // Insert direction words in middle pane in case we change directions
+    // later on
     const wordDiv =
         createWordDiv(LEFT_AXIS_WORD + '--->' + RIGHT_AXIS_WORD, 'red', '0px');
     wordDiv.style.textAlign = 'center';
@@ -160,7 +172,13 @@ textInputElement.addEventListener('change', async () => {
     wordsContainerElement.insertBefore(
         createSeparator(), wordsContainerElement.firstChild);
   }
-});
+}
+
+textInputElement.addEventListener('change', showResults);
+
+const bc = new BroadcastChannel('word_flow_channel');
+bc.onmessage = message =>
+    projectWordsVis(message.data.word, message.data.colorId);
 
 function createWordDiv(
     text: string, color: string, margin: string): HTMLDivElement {
@@ -188,38 +206,11 @@ function stretchValueVis(value: number): number {
 }
 
 async function setup() {
-  // Check if we have an entry in the database.
-  const db = new Dexie(BARBICAN_DATABASE_NAME);
-  db.version(1).stores({embeddings: 'words,values'});
+  const data = await utils.loadDatabase(
+      EMBEDDINGS_DIR, EMBEDDINGS_WORDS_URL, EMBEDDINGS_VALUES_URL);
 
-  let words: string[];
-  let embeddings: Float32Array;
-  const length = await (db as any).embeddings.count();
-  if (length == null || length == 0) {
-    console.log('Loading embeddings from the network...');
-    const wordsRequest = await fetch(EMBEDDINGS_WORDS_URL);
-    words = await wordsRequest.json();
-
-    const embeddingsRequest = await fetch(EMBEDDINGS_VALUES_URL);
-    embeddings = new Float32Array(await embeddingsRequest.arrayBuffer());
-
-    const blob = new Blob([embeddings], {type: 'octet/stream'});
-
-    await (db as any).embeddings.put({words, values: blob});
-  } else {
-    console.log('Loading embeddings from IndexedDB cache...');
-    const results = await (db as any).embeddings.toArray();
-    words = results[0].words;
-
-    embeddings = await new Promise<Float32Array>((resolve) => {
-      const fileReader = new FileReader();
-      fileReader.onload = event =>
-          resolve(new Float32Array((event.target as any).result));
-      fileReader.readAsArrayBuffer(results[0].values);
-    });
-    await db.close();
-  }
-
+  const words = data.words;
+  const embeddings = data.embeddings;
   // Round # words to closest 10th index till tfjs prime number bug is
   // fixed.
   let embLen = words.length;
@@ -231,8 +222,21 @@ async function setup() {
   const embeddingTensor = tf.tensor2d(
       embeddings.slice(0, embLen * dimensions), [embLen, dimensions]);
   emb = new WordEmbedding(embeddingTensor, words.slice(0, embLen));
+
   loadingElement.style.display = 'none';
   bodyElement.style.display = '';
+
+
+  // Parse the params and adjust accordingly.
+  const params = parseURL();
+  if ('3js' in params) {
+    USE_3JS = (params['3js'] === 'true');
+  }
+
+  // If it's specified to only use the seperate UI, hide the bar at the top.
+  if (('hideInput' in params) && (params['hideInput'] === 'true')) {
+    bodyElement.style.display = 'none';
+  }
 }
 
 setup();
