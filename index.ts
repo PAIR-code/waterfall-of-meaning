@@ -248,7 +248,6 @@ async function setup() {
   // If it's specified to only use the seperate UI, hide the bar at the top.
   if (('hideInput' in params) && (params['hideInput'] === 'true')) {
     bodyElement.style.display = 'none';
-    console.log('shouldn not ge here');
   }
 }
 
