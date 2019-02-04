@@ -15,6 +15,7 @@
  * =============================================================================
  */
 import * as tf from '@tensorflow/tfjs';
+import * as dat from 'dat.gui';
 import Dexie from 'dexie';
 
 import * as utils from './visualization/utils';
@@ -47,12 +48,12 @@ function parseURL(): {[id: string]: string;} {
 let USE_3JS = true;
 let LEFT_AXIS_WORD = 'he';
 let RIGHT_AXIS_WORD = 'she';
-let NEIGHBOR_COUNT = 10;
+let NEIGHBOR_COUNT = 20;
 let emb: WordEmbedding;
 let vis: Visualization;
 
 const visAxes = [
-  ['amazing', 'terrible'],
+  ['good', 'bad'],
   ['expensive', 'cheap'],
   ['weak', 'strong'],
   ['he', 'she'],
@@ -76,6 +77,17 @@ const numNeighborsInputElement =
 // this is art after all :)
 if (USE_3JS) {
   vis = new Visualization(visAxes);
+  const gui = new dat.GUI();
+  gui.add(vis, 'numRaindrops').onChange(() => vis.start());
+  gui.add(vis, 'rainSpeed').onChange(() => vis.start());
+  gui.add(vis, 'wordSpeed').onChange(() => vis.start());
+  gui.add(vis, 'axisFontSize').onChange(() => vis.start());
+  gui.add(vis, 'wordFontSize').onChange(() => vis.start());
+  gui.add(vis, 'wordBrightness').onChange(() => vis.start());
+  gui.add(vis, 'qWordBrightness').onChange(() => vis.start());
+  gui.add(vis, 'circleBrightness').onChange(() => vis.start());
+  gui.addColor(vis, 'axisColor').onChange(() => vis.start());
+  gui.addColor(vis, 'bgColor').onChange(() => vis.start());
   document.getElementById('container').hidden = true;
 }
 
@@ -116,7 +128,7 @@ async function projectWordsVis(word: string, id: number) {
     // This color will be a hue (for an hsl color.) So, the id is multiplied by
     // 36 to put it in range of 0-360 (the range for a hue.) Then, we add a bit
     // of color variation up through + 70 of the hue.
-    const colorId = Math.floor(id * 36 + i / knn.length * 70) % 360
+    const colorId = Math.floor(id * 36 + i / knn.length * 30) % 360
 
     const sims: number[] = [];
     for (const axes of visAxes) {
@@ -236,6 +248,7 @@ async function setup() {
   // If it's specified to only use the seperate UI, hide the bar at the top.
   if (('hideInput' in params) && (params['hideInput'] === 'true')) {
     bodyElement.style.display = 'none';
+    console.log('shouldn not ge here');
   }
 }
 

@@ -19,6 +19,7 @@
  * Master class for visualizing the words, rain, etc of the scene.  It
  * delegates to SceneCompositor for blending and the scenes.
  */
+import {start} from 'repl';
 import * as THREE from 'three';
 
 import {makeCompositor} from './scenesCompositor'
@@ -39,35 +40,63 @@ const RIGHT = TOP / 4;
 const WIDTH = RIGHT - LEFT;
 
 // For the physics!
-const DT = 3;
+const DT = 1;
 const NUM_RAINDROPS = 1000;
-const BG_COLOR = {
-  h: 217,
-  s: 60,
-  l: 17
-};
 const AXIS_COLOR = {
   h: 217,
-  s: 48,
-  l: 30
+  s: .60,
+  v: .17
+};
+const BG_COLOR = {
+  h: 217,
+  s: .48,
+  v: .30
 };
 
 export class Visualization {
   rainGeometry: any;
   composer: any;
-  words: any[] = [];
-  blurs: any[] = [];
+  words: any[];
+  blurs: any[];
   font: any;
   axisFont: any;
   wordScene: THREE.Scene;
   rainScene: THREE.Scene;
-  yPosToAxesArr: number[] = [];
-  axesToYPosArr: number[] = [];
-  axesWidths: number[] = [];
+  yPosToAxesArr: number[];
+  axesToYPosArr: number[];
+  axesWidths: number[];
+  renderer: THREE.WebGLRenderer = new THREE.WebGLRenderer({antialias: true});
+  animating = false;
+
+  // Controlable params for dat.gui
+  numRaindrops: number = NUM_RAINDROPS;
+  rainSpeed: number = 1;
+  wordSpeed: number = 1;
+  axisFontSize: number = 1;
+  wordFontSize: number = 1;
+  axisColor = AXIS_COLOR;
+  bgColor = BG_COLOR;
+  wordBrightness = .75;
+  qWordBrightness = .2;
+  circleBrightness = .75;
 
   constructor(private axes: string[][]) {
+    this.start();
+  }
+  start() {
+    const child = document.body.getElementsByTagName('canvas');
+    if (child.length > 0) {
+      document.body.removeChild(child[0]);
+    }
+    this.words = [];
+    this.blurs = [];
+    this.yPosToAxesArr = [];
+    this.axesToYPosArr = [];
+    this.axesWidths = [];
     this.init();
-    this.animate();
+    if (!this.animating) {
+      this.animate();
+    }
   }
 
   /** Create and set up the visualization. */
@@ -84,8 +113,8 @@ export class Visualization {
 
     // Make scene that contains the inputted words.
     this.wordScene = new THREE.Scene();
-    this.wordScene.background =
-        new THREE.Color(utils.toHSL(AXIS_COLOR.h, AXIS_COLOR.s, AXIS_COLOR.l));
+    this.wordScene.background = new THREE.Color(
+        utils.toHSL(this.bgColor.h, this.bgColor.s, this.bgColor.v));
 
     // Make axis words.
     this.axes.forEach(axis => {
@@ -97,15 +126,16 @@ export class Visualization {
         new THREE.OrthographicCamera(LEFT, RIGHT, TOP, BOTTOM, 2, 2000);
     camera.position.z = 1000;
     this.composer = makeCompositor(
-        this.rainScene, this.wordScene, camera, ELT_WIDTH, ELT_HEIGHT);
+        this.rainScene, this.wordScene, camera, ELT_WIDTH, ELT_HEIGHT,
+        this.renderer);
   }
 
   private precomputeAxesYPos() {
     for (let i = 0; i < TOP; i++) {
-      this.yPosToAxesArr.push(this.yPosToAxes(i))
+      this.yPosToAxesArr.push(this.yPosToAxes(i));
     }
     for (let i = 0; i < this.axes.length; i++) {
-      this.axesToYPosArr.push(this.axesToYPos(i))
+      this.axesToYPosArr.push(this.axesToYPos(i));
     }
   }
 
@@ -126,6 +156,7 @@ export class Visualization {
 
   /** Animation loop. Updates positions and rerenders. */
   private async animate() {
+    this.animating = true;
     requestAnimationFrame(() => this.animate());
     this.updateRain();
     this.updateWords();
@@ -143,32 +174,38 @@ export class Visualization {
    * @param isQueryWord Was this the original query word that the user typed in?
    */
   private makeWord(
-      word: string, similarities: number[], isQueryWord: boolean, id: number, ,
+      word: string, similarities: number[], isQueryWord: boolean, id: number,
       idxFromQuery: number) {
-    const circleRad = 2;
+    const circleRad = 2 * this.wordFontSize;
     const words = word.split(' ');
     const wordGroup = new THREE.Group();
 
     // The color scheme is as follows: circle, word, and trail all have the same
     // hue. The circle and word are a lighter version (except the query word),
     // the blur is a darker version.
-    const wordColor = new THREE.Color(utils.toHSL(id, 50, 75));
-    const bgColor =
-        new THREE.Color(utils.toHSL(id, 50, (isQueryWord ? 10 : 10)));
-    const blurColor = new THREE.Color(utils.toHSL(id, 100, 50));
+    const wordColor = new THREE.Color(utils.toHSL(
+        id, .50, isQueryWord ? this.qWordBrightness : this.wordBrightness));
+    const bgColor = new THREE.Color(utils.toHSL(id, .5, this.circleBrightness));
+    const blurColor =
+        new THREE.Color(utils.toHSL(id, 1., this.circleBrightness));
     // Make the material for the text itself.
     const textMaterial = new THREE.MeshBasicMaterial({
       color: wordColor,
       opacity: Math.abs(similarities[0] * 2),
       transparent: true
     });
+    // Make all of this into a group.
+    var group = new THREE.Group();
+    group.userData = {vel: 0, pulls: similarities, isQueryWord};
+    const startYPos = isQueryWord ? TOP : TOP + idxFromQuery * 30;
+    group.position.set(this.centerXPos(), startYPos, 0);
 
     // The geometry of the word. Use the font created earlier.
     for (let i = 0; i < words.length; i++) {
       const singleWord = words[i];
       const textGeometry = new THREE.TextGeometry(singleWord.toLowerCase(), {
         font: this.font,
-        size: 2,
+        size: 2 * this.wordFontSize,
         height: 2.5,
         curveSegments: 12,
         bevelThickness: .1,
@@ -184,33 +221,29 @@ export class Visualization {
       wordMesh.position.set(-wordWidth / 2, yPos + circleRad * 2, 0);
       wordGroup.add(wordMesh)
     }
+    group.add(wordGroup);
 
     // Make the background circle.
-    const circleGeometry = new THREE.CircleGeometry(circleRad * 2, 32);
-    const circleMaterial =
-        new THREE.MeshBasicMaterial({color: bgColor, transparent: true});
-    const circle = new THREE.Mesh(circleGeometry, circleMaterial);
-    circle.position.set(0, circleRad * 2, 0)
+    if (isQueryWord) {
+      const circleGeometry = new THREE.CircleGeometry(circleRad * 2, 32);
+      const circleMaterial =
+          new THREE.MeshBasicMaterial({color: bgColor, transparent: true});
+      const circle = new THREE.Mesh(circleGeometry, circleMaterial);
+      circle.position.set(0, circleRad * 2, 0)
+      group.add(circle);
 
-    // Make the blur trail circle.
-    const blurGeometry = new THREE.CircleGeometry(circleRad * 2, 32);
-    const blurMaterial =
-        new THREE.MeshBasicMaterial({color: blurColor, transparent: false});
-    const blurMesh = new THREE.Mesh(blurGeometry, blurMaterial);
-
-    // Make all of this into a group.
-    var group = new THREE.Group();
-    group.add(wordGroup);
-    group.add(circle);
-    group.userData = {vel: 0, pulls: similarities};
-    const startYPos = isQueryWord ? TOP : TOP + idxFromQuery * 30;
-    group.position.set(this.centerXPos(), startYPos, 0);
+      // Make the blur trail circle.
+      const blurGeometry = new THREE.CircleGeometry(circleRad * 2, 32);
+      const blurMaterial =
+          new THREE.MeshBasicMaterial({color: blurColor, transparent: false});
+      const blurMesh = new THREE.Mesh(blurGeometry, blurMaterial);
+      this.rainScene.add(blurMesh);
+      this.blurs.push(blurMesh);
+    } else {
+      this.blurs.push(null);
+    }
 
     this.wordScene.add(group);
-    this.rainScene.add(blurMesh);
-    this.blurs.push(blurMesh);
-
-
     return group;
   }
 
@@ -218,7 +251,7 @@ export class Visualization {
   private makeRain() {
     this.rainGeometry = new THREE.Geometry();
     const sprite = utils.makeSprite()
-    for (var i = 0; i < NUM_RAINDROPS; i++) {
+    for (var i = 0; i < this.numRaindrops; i++) {
       var x = this.randomXPos();
       var y = this.randomRainYPos();
       var z = 0;
@@ -227,9 +260,9 @@ export class Visualization {
 
     // Store the pulls (random direction of the rain) and velocity.
     this.rainGeometry.userData = {
-      pulls:
-          Array.from({length: NUM_RAINDROPS}, () => (Math.random() - 0.5) / 20),
-      vels: Array.from({length: NUM_RAINDROPS}, () => 0)
+      pulls: Array.from(
+          {length: this.numRaindrops}, () => (Math.random() - 0.5) / 20),
+      vels: Array.from({length: this.numRaindrops}, () => 0)
     }
 
     const material = new THREE.PointsMaterial({size: 2, map: sprite});
@@ -238,31 +271,46 @@ export class Visualization {
     this.rainScene.add(particles);
   }
 
+  private axisWordMesh(word: string, material: THREE.Material) {
+    const textGeometry = new THREE.TextGeometry(word.toUpperCase(), {
+      font: this.axisFont,
+      size: ELT_WIDTH / 100 * this.axisFontSize,
+      height: 5,
+      curveSegments: 12,
+      bevelThickness: .1,
+    });
+    const mesh = new THREE.Mesh(textGeometry, material);
+    return mesh;
+  }
+
+
   /**
    * Create an axis word and add it to the scene.
    * @param axis Postive and negative sides of the axis.
    */
   private makeAxisWord(axis: string[]) {
-    const textGeometry = new THREE.TextGeometry(
-        axis[0].toUpperCase() + '          ' + axis[1].toUpperCase(), {
-          font: this.axisFont,
-          size: ELT_WIDTH / 100,
-          height: 5,
-          curveSegments: 12,
-          bevelThickness: .1,
-        });
+    const textMaterial = new THREE.MeshBasicMaterial({
+      color: utils.toHSL(this.axisColor.h, this.axisColor.s, this.axisColor.v)
+    });
 
-    const textMaterial = new THREE.MeshBasicMaterial(
-        {color: utils.toHSL(BG_COLOR.h, BG_COLOR.s, BG_COLOR.l)});
+    // Word for the left side of the axis
+    const mesh0 = this.axisWordMesh(axis[0], textMaterial);
+    mesh0.position.set(-RIGHT * 3 / 4, 0, 0);
 
-    // Get bounding box to see where to place this.
-    textGeometry.computeBoundingBox();
-    const bb = textGeometry.boundingBox;
-    const mesh = new THREE.Mesh(textGeometry, textMaterial);
+    // Word for the right side of the axis
+    const mesh1 = this.axisWordMesh(axis[1], textMaterial);
+    mesh1.geometry.computeBoundingBox();
+    const bb = mesh1.geometry.boundingBox;
+    mesh1.position.set(RIGHT * 3 / 4 - bb.max.x, 0, 0);
+
+    // Group for the words.
+    const group = new THREE.Group();
+    group.add(mesh0);
+    group.add(mesh1);
     const axisIdx = this.axes.indexOf(axis);
-    mesh.position.set(-bb.max.x / 2, this.axesToYPos(axisIdx) - bb.max.y, -5);
-    this.axesWidths.push(bb.max.x);
-    this.wordScene.add(mesh);
+    group.position.set(0, this.axesToYPos(axisIdx) - bb.max.y, -5);
+    this.axesWidths.push(WIDTH * 3 / 4);
+    this.wordScene.add(group);
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -314,7 +362,9 @@ export class Visualization {
           utils.lerp(blendVal, Math.abs(prevBias), Math.abs(bias)) * 3;
       wordGroup.scale.x = scale;
       wordGroup.scale.y = scale;
-      wordGroup.children[1].material.opacity = scale / 5;
+      if (wordGroup.userData.isQueryWord) {
+        wordGroup.children[1].material.opacity = scale / 5;
+      }
       wordGroup.children[0].children[0].material.opacity = scale;
 
       // Axis width (in 3js space.)
@@ -332,11 +382,13 @@ export class Visualization {
       wordGroup.userData.vel = posVel.v;
 
       // Update the blur trail's poisition and scale.
-      const blur = this.blurs[i]
-      blur.position.set(posVel.x, posVel.y + scale * 4, posVel.z);
-      blur.scale.x = scale;
-      blur.scale.y = scale;
-
+      if (wordGroup.userData.isQueryWord) {
+        const blur = this.blurs[i]
+        blur.position.set(
+            posVel.x, posVel.y + scale * this.wordFontSize * 4, posVel.z);
+        blur.scale.x = scale;
+        blur.scale.y = scale;
+      }
       // If the mesh is offscreen, delete all its components.
       if (posVel.y < BOTTOM + 5) {
         this.deleteWord(i, wordGroup);
@@ -349,8 +401,15 @@ export class Visualization {
     this.words.splice(wordIdx, 1);
 
     const wordGroupKids = wordGroup.children;
-    const circle = wordGroupKids[1] as THREE.Mesh;
-    this.deleteMesh(circle);  // Circle
+    if (wordGroup.userData.isQueryWord) {
+      const circle = wordGroupKids[1] as THREE.Mesh;
+      this.deleteMesh(circle);  // Circle
+
+      // Delete blur.
+      const blur = this.blurs[wordIdx];
+      this.deleteMesh(blur);
+    }
+    this.blurs.splice(wordIdx, 1);
 
     // Delete words (could be multiple words, like "orthopedic surgeon.")
     // NB: iterating backwards!!
@@ -358,11 +417,6 @@ export class Visualization {
     for (let j = words.children.length - 1; j > -1; j--) {
       this.deleteMesh(words.children[j] as THREE.Mesh);
     }
-
-    // Delete blur.
-    const blur = this.blurs[wordIdx];
-    this.blurs.splice(wordIdx, 1);
-    this.deleteMesh(blur);
   }
 
   /**
@@ -388,12 +442,13 @@ export class Visualization {
    */
   private getNewLoc(
       prevPos: THREE.Vector3, prevV: number, xForce: number, isRain: boolean) {
+    const speed = isRain ? this.rainSpeed : this.wordSpeed;
     // Update x position with the force.
-    const x = prevPos.x + xForce * DT;
+    const x = prevPos.x + xForce * DT * speed;
 
     // Same with Y.
-    const fGravity = -1 / 5000;
-    let v = prevV + fGravity * DT;
+    const fGravity = -1 / 500;
+    let v = prevV + fGravity * DT * speed;
     let y = prevPos.y + v * DT;
     let z = prevPos.z;
 
