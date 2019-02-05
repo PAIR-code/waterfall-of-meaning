@@ -31,7 +31,6 @@ const {EffectComposer} = require('./EffectComposer/EffectComposer');
 export function makeCompositor(
     rainScene: THREE.Scene, wordScene: THREE.Scene, camera: THREE.Camera,
     width: number, height: number, renderer: THREE.WebGLRenderer) {
-  // Create renderer screen element and add to DOM.
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(width, height);
   renderer.autoClear = false;
