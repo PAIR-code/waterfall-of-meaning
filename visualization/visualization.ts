@@ -197,7 +197,7 @@ export class Visualization {
     // Make all of this into a group.
     var group = new THREE.Group();
     group.userData = {vel: 0, pulls: similarities, isQueryWord};
-    const startYPos = isQueryWord ? TOP : TOP + idxFromQuery * 30;
+    const startYPos = isQueryWord ? TOP : TOP + idxFromQuery * .1;
     group.position.set(this.centerXPos(), startYPos, 0);
 
     // The geometry of the word. Use the font created earlier.
@@ -217,8 +217,9 @@ export class Visualization {
       const bb = textGeometry.boundingBox;
       const wordWidth = (bb.max.x - bb.min.x);
       const wordHeight = (bb.max.y - bb.min.y);
-      const yPos = (words.length / 2 - i - 1) * wordHeight;
-      wordMesh.position.set(-wordWidth / 2, yPos + circleRad * 2, 0);
+      let yPos = (words.length / 2 - i - 1) * wordHeight;
+      yPos += isQueryWord ? circleRad * 2 : circleRad;
+      wordMesh.position.set(-wordWidth / 2, yPos, 0);
       wordGroup.add(wordMesh)
     }
     group.add(wordGroup);
@@ -344,7 +345,8 @@ export class Visualization {
       let wordGroup = this.words[i];
       const vel = wordGroup.userData.vel;
       const pos = wordGroup.position;
-
+      const isQueryWord = wordGroup.userData.isQueryWord;
+      const queryWordScale = 3;
       // Determine which level we are at, and get the pull accordingly (i.e., if
       // we're falling toward the "he/she" axis, use the "he/she" pull.)
       const axesIdx = this.yPosToAxes(pos.y);
@@ -358,12 +360,14 @@ export class Visualization {
 
       // The scale the weighted average of those (weighted by position between
       // them.)
-      const scale =
-          utils.lerp(blendVal, Math.abs(prevBias), Math.abs(bias)) * 3;
-      wordGroup.scale.x = scale;
-      wordGroup.scale.y = scale;
-      if (wordGroup.userData.isQueryWord) {
-        wordGroup.children[1].material.opacity = scale / 5;
+      let scale = utils.lerp(blendVal, Math.abs(prevBias), Math.abs(bias)) * 2;
+      scale = Math.pow(scale, 3);
+      if (!isQueryWord) {
+        wordGroup.scale.x = scale;
+        wordGroup.scale.y = scale;
+      } else {
+        wordGroup.scale.x = queryWordScale;
+        wordGroup.scale.y = queryWordScale;
       }
       wordGroup.children[0].children[0].material.opacity = scale;
 
@@ -376,18 +380,22 @@ export class Visualization {
       // Spring force toward the target location, (in %.)
       const pull = (targetLoc - pos.x / (WIDTH / 2)) / 5;
 
+      let posVel;
       // Caluclate and set the new position.
-      const posVel = this.getNewLoc(pos, vel, pull, false);
+      posVel =
+          this.getNewLoc(pos, vel, pull, false, isQueryWord ? 1 : bias * .99);
+
       wordGroup.position.set(posVel.x, posVel.y, posVel.z);
       wordGroup.userData.vel = posVel.v;
 
       // Update the blur trail's poisition and scale.
-      if (wordGroup.userData.isQueryWord) {
+      if (isQueryWord) {
         const blur = this.blurs[i]
         blur.position.set(
-            posVel.x, posVel.y + scale * this.wordFontSize * 4, posVel.z);
-        blur.scale.x = scale;
-        blur.scale.y = scale;
+            posVel.x, posVel.y + queryWordScale * this.wordFontSize * 4,
+            posVel.z);
+        blur.scale.x = queryWordScale;
+        blur.scale.y = queryWordScale;
       }
       // If the mesh is offscreen, delete all its components.
       if (posVel.y < BOTTOM + 5) {
@@ -441,8 +449,11 @@ export class Visualization {
    * @param isRain: Is this rain?
    */
   private getNewLoc(
-      prevPos: THREE.Vector3, prevV: number, xForce: number, isRain: boolean) {
-    const speed = isRain ? this.rainSpeed : this.wordSpeed;
+      prevPos: THREE.Vector3, prevV: number, xForce: number, isRain: boolean,
+      bias = 0) {
+    let speed = isRain ? this.rainSpeed : this.wordSpeed;
+    speed = speed * Math.abs(Math.pow(bias, 3));
+
     // Update x position with the force.
     const x = prevPos.x + xForce * DT * speed;
 
