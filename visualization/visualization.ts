@@ -21,7 +21,7 @@
  */
 import * as THREE from 'three';
 
-import {makeCompositor} from './scenesCompositor'
+import {ScenesCompositor} from './scenesCompositor'
 import * as utils from './utils'
 
 const font = require('../fonts/Raleway_Light.json');
@@ -54,7 +54,7 @@ const BG_COLOR = {
 
 export class Visualization {
   rainGeometry: any;
-  composer: any;
+  compositor: ScenesCompositor;
   words: any[];
   blurs: any[];
   font: any;
@@ -120,11 +120,11 @@ export class Visualization {
       this.makeAxisWord(axis);
     });
 
-    // Add camera and renderer, which
+    // Add camera and renderer.
     const camera =
         new THREE.OrthographicCamera(LEFT, RIGHT, TOP, BOTTOM, 2, 2000);
     camera.position.z = 1000;
-    this.composer = makeCompositor(
+    this.compositor = new ScenesCompositor(
         this.rainScene, this.wordScene, camera, ELT_WIDTH, ELT_HEIGHT,
         this.renderer);
   }
@@ -159,7 +159,7 @@ export class Visualization {
     requestAnimationFrame(() => this.animate());
     this.updateRain();
     this.updateWords();
-    this.composer.render();
+    this.compositor.render();
   }
 
   //////////////////////////////////////////////////////////////////////////////

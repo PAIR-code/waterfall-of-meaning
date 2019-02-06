@@ -18,85 +18,71 @@
 /** Composite all the scenes together, and set up blending effects. */
 
 import * as THREE from 'three';
-import {BlendShader, CopyShader} from 'three-shaders';
-
+import {CopyShader} from './CopyShader';
 import {RainBlendShader} from './rainBlendShader';
 import {SceneBlender} from './sceneBlenderShader';
 
-const {RenderPass} = require('./EffectComposer/RenderPass');
-const {SavePass} = require('./EffectComposer/SavePass');
-const {ShaderPass} = require('./EffectComposer/ShaderPass');
-const {EffectComposer} = require('./EffectComposer/EffectComposer');
+const PARAMS = {
+  // FYI: Using 'THREE.NearestFilter' instead these makes rain
+  // render as dots rather than blurred streaks.
+  minFilter: THREE.LinearFilter,
+  magFilter: THREE.LinearFilter,
+  format: THREE.RGBAFormat,
+  // stencilBuffer: false,
+};
 
-export function makeCompositor(
-    rainScene: THREE.Scene, wordScene: THREE.Scene, camera: THREE.Camera,
-    w: number, h: number, renderer: THREE.WebGLRenderer) {
-  renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.setSize(w, h);
-  renderer.autoClear = false;
-  document.body.appendChild(renderer.domElement);
+export class ScenesCompositor {
+  passes: Pass[] = [];
+  constructor(
+      rainScene: THREE.Scene, wordScene: THREE.Scene, camera: THREE.Camera,
+      private w: number, private h: number,
+      private renderer: THREE.WebGLRenderer) {
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(w, h);
+    renderer.autoClear = false;
+    document.body.appendChild(renderer.domElement);
 
-  // Make our composer, and render passes.
-  const composer = new EffectComposer(renderer);
-  var params = {
-    // FYI: Using 'THREE.NearestFilter' instead these makes rain
-    // render as dots rather than blurred streaks.
-    minFilter: THREE.LinearFilter,
-    magFilter: THREE.LinearFilter,
-    format: THREE.RGBAFormat,
-    // stencilBuffer: false,
-  };
+    // Words passes. Render words and save.
+    const renderPassWords =
+        new RenderPass(wordScene, camera, this.renderTarget());
 
-  // Words passes. Render words and save.
-  var renderPassWords = new RenderPass(
-      wordScene, camera, undefined, undefined, undefined,
-      new THREE.WebGLRenderTarget(w, h, params));
-  // var savePassWords = new SavePass(
-  //     new THREE.WebGLRenderTarget(width, height, renderTargetParameters));
+    // Rain passes. Render, save, and blend with the previous frame for blur.
+    const renderPassRain =
+        new RenderPass(rainScene, camera, this.renderTarget());
+    const blendPassRain = new ShaderPass(RainBlendShader, this.renderTarget());
 
-  // Rain passes. Render, save, and blend with the previous frame for blur.
-  var renderPassRain = new RenderPass(
-      rainScene, camera, undefined, undefined, undefined,
-      new THREE.WebGLRenderTarget(w, h, params));
+    const savePassRain = new ShaderPass(CopyShader, this.renderTarget());
+    savePassRain.setUniform('tDiffuse', blendPassRain.getRTTexture());
+    blendPassRain.setUniform('tDiffuse2', renderPassRain.getRTTexture());
+    blendPassRain.setUniform('tDiffuse1', savePassRain.getRTTexture());
 
+    // Blend rain and words together
+    const blendPass = new ShaderPass(SceneBlender, this.renderTarget());
+    blendPass.setUniform('tDiffuse1', blendPassRain.getRTTexture());
+    blendPass.setUniform('tDiffuse2', renderPassWords.getRTTexture());
 
-  var blendPassRain = new ShaderPass(
-      RainBlendShader, 'tDiffuse1', new THREE.WebGLRenderTarget(w, h, params));
+    // output pass
+    blendPass.renderToScreen = true;
 
-  var savePassRain = new SavePass(new THREE.WebGLRenderTarget(w, h, params));
-  savePassRain.uniforms['tDiffuse'].value = blendPassRain.renderTarget.texture;
+    // Composite everything together (order matters here!)
+    // this.addPass(renderPassRain);
+    // this.addPass(blendPassRain);
+    // this.addPass(savePassRain);
+    this.addPass(renderPassWords);
+    this.addPass(blendPass);
+  }
 
-  blendPassRain.uniforms['tDiffuse2'].value =
-      renderPassRain.renderTarget.texture;
-  blendPassRain.uniforms['tDiffuse1'].value = savePassRain.renderTarget.texture;
+  /** Create a render target with the params. */
+  renderTarget() {
+    return new THREE.WebGLRenderTarget(this.w, this.h, PARAMS);
+  }
 
-  // Blend EVERYTHING together
-  var blendPass = new ShaderPass(SceneBlender, 'tDiffuse1');
-  blendPass.uniforms['tDiffuse1'].value = blendPassRain.renderTarget.texture;
-  blendPass.uniforms['tDiffuse2'].value = renderPassWords.renderTarget.texture;
-
-  // output pass
-  blendPass.renderToScreen = true;
-
-  // Composite everything together (order matters here!)
-  composer.addPass(renderPassRain);
-  composer.addPass(blendPassRain);
-  composer.addPass(savePassRain);
-
-  composer.addPass(renderPassWords);
-
-  composer.addPass(blendPass);
-
-  return composer;
-}
-
-
-export class ComposerClass {
-  passes: Pass2[] = [];
-  constructor(private renderer: THREE.Renderer) {}
-  addPass(pass: Pass2) {
+  /** Add pass to be rendered */
+  addPass(pass: Pass) {
     this.passes.push(pass);
   }
+
+  /** Render all passes */
   render() {
     this.passes.forEach(pass => {
       pass.render(this.renderer);
@@ -104,19 +90,62 @@ export class ComposerClass {
   }
 }
 
-export class Pass2 {
-  render(renderer: THREE.renderer) {
-    console.error('THREE.Pass: .render() must be implemented in derived pass.');
+/** Generic render pass. */
+export class Pass {
+  renderToScreen = false;
+  protected scene: THREE.Scene;
+  protected camera: THREE.Camera;
+  protected renderTarget: THREE.WebGLRenderTarget;
+  render(renderer: THREE.WebGLRenderer) {
+    renderer.render(
+        this.scene, this.camera, this.renderToScreen ? null : this.renderTarget,
+        true);
+  }
+  getRTTexture() {
+    return this.renderTarget.texture;
   }
 }
 
-export class RenderPass2 extends Pass2 {
-  render(renderer: THREE.Renderer) {}
-}
-export class SavePass2 extends Pass2 {
-  render(renderer: THREE.Renderer) {}
+/** Simple render pass. Renders a scene to the target. */
+export class RenderPass extends Pass {
+  constructor(
+      scene: THREE.Scene, camera: THREE.Camera,
+      renderTarget: THREE.WebGLRenderTarget) {
+    super();
+    this.scene = scene;
+    this.camera = camera;
+    this.renderTarget = renderTarget;
+  }
 }
 
-export class ShaderPass2 extends Pass2 {
-  render(renderer: THREE.Renderer) {}
+/** Shader pass to apply an effect (or, any shader) to a scene. */
+export class ShaderPass extends Pass {
+  /** Uniforms of the shader to be passed in. */
+  private uniforms: {[key: string]: THREE.IUniform};
+
+  constructor(
+      shader: THREE.ShaderMaterial, renderTarget: THREE.WebGLRenderTarget) {
+    super();
+    this.renderTarget = renderTarget;
+    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    this.scene = new THREE.Scene();
+    this.uniforms = shader.uniforms;
+
+    // Add a quad as our render screen;
+    const quad = new THREE.Mesh(new THREE.PlaneBufferGeometry(2, 2), null);
+    quad.frustumCulled = false;  // Avoid getting clipped
+    this.scene.add(quad);
+    quad.material = shader;
+  };
+
+  /**
+   * Sets the value for a uniform.
+   * @param uniformName  Name of uniform to be set.
+   * @param value Value to set this uniform.
+   */
+  setUniform(uniformName: string, value: THREE.Texture) {
+    if (uniformName in this.uniforms) {
+      this.uniforms[uniformName].value = value;
+    }
+  }
 }
