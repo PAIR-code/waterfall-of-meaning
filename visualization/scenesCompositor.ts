@@ -30,9 +30,7 @@ const {EffectComposer} = require('./EffectComposer/EffectComposer');
 
 export function makeCompositor(
     rainScene: THREE.Scene, wordScene: THREE.Scene, camera: THREE.Camera,
-    w: number, h: number) {
-  // Create renderer screen element and add to DOM.
-  const renderer = new THREE.WebGLRenderer({antialias: true});
+    w: number, h: number, renderer: THREE.WebGLRenderer) {
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setSize(w, h);
   renderer.autoClear = false;
@@ -41,7 +39,7 @@ export function makeCompositor(
   // Make our composer, and render passes.
   const composer = new EffectComposer(renderer);
   var params = {
-    // FYI: Using 'THREE.NearestMipMapNearestFilter' instead these makes rain
+    // FYI: Using 'THREE.NearestFilter' instead these makes rain
     // render as dots rather than blurred streaks.
     minFilter: THREE.LinearFilter,
     magFilter: THREE.LinearFilter,
@@ -99,15 +97,26 @@ export class ComposerClass {
   addPass(pass: Pass2) {
     this.passes.push(pass);
   }
+  render() {
+    this.passes.forEach(pass => {
+      pass.render(this.renderer);
+    })
+  }
 }
 
 export class Pass2 {
-  render(
-      renderer: THREE.renderer, writeBuffer: THREE.RenderTarget,
-      readBuffer: THREE.RenderTarget) {
+  render(renderer: THREE.renderer) {
     console.error('THREE.Pass: .render() must be implemented in derived pass.');
   }
 }
 
-export class RenderPass2 extends Pass2 {}
-export class SavePass2 extends Pass2 {}
+export class RenderPass2 extends Pass2 {
+  render(renderer: THREE.Renderer) {}
+}
+export class SavePass2 extends Pass2 {
+  render(renderer: THREE.Renderer) {}
+}
+
+export class ShaderPass2 extends Pass2 {
+  render(renderer: THREE.Renderer) {}
+}

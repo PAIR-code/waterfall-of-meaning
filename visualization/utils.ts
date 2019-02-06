@@ -45,7 +45,8 @@ export function makeSprite() {
 
 /** Convert h, s and l values to a string to be used by THREE.js */
 export function toHSL(h: number, s: number, l: number) {
-  return 'hsl(' + h + ',' + s + '%,' + l + '%)';
+  return 'hsl(' + h + ',' + Math.ceil(s * 100) + '%,' + Math.ceil(l * 100) +
+      '%)';
 }
 
 /** Linearly interpolate between two values. */
