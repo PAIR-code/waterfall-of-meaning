@@ -275,15 +275,34 @@ export class Visualization {
   private axisWordMesh(word: string, material: THREE.Material) {
     const textGeometry = new THREE.TextGeometry(word.toUpperCase(), {
       font: this.axisFont,
-      size: ELT_WIDTH / 100 * this.axisFontSize,
+      size: this.axisFontSize * 5,
       height: 5,
       curveSegments: 12,
-      bevelThickness: .1,
+      bevelThickness: 2,
     });
     const mesh = new THREE.Mesh(textGeometry, material);
     return mesh;
   }
 
+/**
+ * Create an axis scale and add it to the scene.
+ * @param axis Postive and negative sides of the axis.
+ */
+
+private makeAxisScale(scaleHeight: any) {
+  const scaleGeometry = new THREE.PlaneGeometry(120 , 0.25 );
+
+
+  const scaleMaterial = new THREE.MeshBasicMaterial({
+      color: utils.toHSL(this.axisColor.h, this.axisColor.s, this.axisColor.v)
+    });
+
+  const mesh = new THREE.Mesh(scaleGeometry, scaleMaterial);
+  mesh.position.set(-RIGHT * 0.02, scaleHeight , -5);
+  console.log(mesh);
+  this.wordScene.add(mesh);
+
+}
 
   /**
    * Create an axis word and add it to the scene.
@@ -298,20 +317,33 @@ export class Visualization {
     const mesh0 = this.axisWordMesh(axis[0], textMaterial);
     mesh0.position.set(-RIGHT * 3 / 4, 0, 0);
 
+    // //calculate starting point of scale for axis
+    // mesh0.geometry.computeBoundingBox();
+    // const bb0 = mesh0.geometry.boundingBox;
+
+ 
     // Word for the right side of the axis
     const mesh1 = this.axisWordMesh(axis[1], textMaterial);
     mesh1.geometry.computeBoundingBox();
-    const bb = mesh1.geometry.boundingBox;
-    mesh1.position.set(RIGHT * 3 / 4 - bb.max.x, 0, 0);
+    const bb1 = mesh1.geometry.boundingBox;
+    mesh1.position.set(RIGHT * 3 / 4 - bb1.max.x, 0, 0);
+
 
     // Group for the words.
     const group = new THREE.Group();
     group.add(mesh0);
     group.add(mesh1);
     const axisIdx = this.axes.indexOf(axis);
-    group.position.set(0, this.axesToYPos(axisIdx) - bb.max.y, -5);
+    group.position.set(0, this.axesToYPos(axisIdx) - bb1.max.y, -5);
+    console.log('group position, ', group.position)
     this.axesWidths.push(WIDTH * 3 / 4);
     this.wordScene.add(group);
+
+    //calculate the scale height
+    const scaleHeight = this.axesToYPos(axisIdx) + bb1.max.y;
+    console.log (scaleHeight);
+
+    this.makeAxisScale(scaleHeight);
   }
 
   //////////////////////////////////////////////////////////////////////////////

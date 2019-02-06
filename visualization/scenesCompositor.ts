@@ -71,9 +71,9 @@ export function makeCompositor(
   composer.addPass(renderPassWords);
   composer.addPass(savePassWords);
 
-  composer.addPass(renderPassRain);
-  composer.addPass(blendPassRain);
-  composer.addPass(savePassRain);
+  // composer.addPass(renderPassRain);
+  // composer.addPass(blendPassRain);
+  // composer.addPass(savePassRain);
 
   composer.addPass(blendPass);
   composer.addPass(outputPass);
