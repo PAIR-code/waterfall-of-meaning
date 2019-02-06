@@ -4,68 +4,54 @@
 import * as THREE from 'three';
 const {EffectComposer, Pass} = require('./EffectComposer');
 
-export function ShaderPass( shader, textureID, name=null ) {
-
-  Pass.call( this );
+export function ShaderPass(
+    shader, textureID, renderTarget = null, name = null) {
+  Pass.call(this);
 
   this.name = name;
 
-	this.textureID = ( textureID !== undefined ) ? textureID : "tDiffuse";
+  this.textureID = (textureID !== undefined) ? textureID : 'tDiffuse';
+  this.renderTarget = renderTarget;
 
-	if ( shader instanceof THREE.ShaderMaterial ) {
+  if (shader instanceof THREE.ShaderMaterial) {
+    this.uniforms = shader.uniforms;
 
-		this.uniforms = shader.uniforms;
+    this.material = shader;
 
-		this.material = shader;
+  } else if (shader) {
+    this.uniforms = THREE.UniformsUtils.clone(shader.uniforms);
 
-	} else if ( shader ) {
+    this.material = new THREE.ShaderMaterial({
 
-		this.uniforms = THREE.UniformsUtils.clone( shader.uniforms );
+      defines: Object.assign({}, shader.defines),
+      uniforms: this.uniforms,
+      vertexShader: shader.vertexShader,
+      fragmentShader: shader.fragmentShader
 
-		this.material = new THREE.ShaderMaterial( {
+    });
+  }
 
-			defines: Object.assign( {}, shader.defines ),
-			uniforms: this.uniforms,
-			vertexShader: shader.vertexShader,
-			fragmentShader: shader.fragmentShader
+  this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  this.scene = new THREE.Scene();
 
-		} );
-
-	}
-
-	this.camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
-	this.scene = new THREE.Scene();
-
-	this.quad = new THREE.Mesh( new THREE.PlaneBufferGeometry( 2, 2 ), null );
-	this.quad.frustumCulled = false; // Avoid getting clipped
-	this.scene.add( this.quad );
-
+  this.quad = new THREE.Mesh(new THREE.PlaneBufferGeometry(2, 2), null);
+  this.quad.frustumCulled = false;  // Avoid getting clipped
+  this.scene.add(this.quad);
 };
 
-ShaderPass.prototype = Object.assign( Object.create( Pass.prototype ), {
+ShaderPass.prototype = Object.assign(Object.create(Pass.prototype), {
 
-	constructor: ShaderPass,
+  constructor: ShaderPass,
 
-	render: function( renderer, writeBuffer, readBuffer, delta, maskActive ) {
+  render: function(renderer, writeBuffer, readBuffer, delta, maskActive) {
+    this.quad.material = this.material;
 
-		if ( this.uniforms[ this.textureID ] ) {
+    if (this.renderToScreen) {
+      renderer.render(this.scene, this.camera);
 
-			this.uniforms[ this.textureID ].value = readBuffer.texture;
+    } else {
+      renderer.render(this.scene, this.camera, this.renderTarget, this.clear);
+    }
+  }
 
-		}
-
-		this.quad.material = this.material;
-
-		if ( this.renderToScreen ) {
-
-			renderer.render( this.scene, this.camera );
-
-		} else {
-
-			renderer.render( this.scene, this.camera, writeBuffer, this.clear );
-
-		}
-
-	}
-
-} );
+});

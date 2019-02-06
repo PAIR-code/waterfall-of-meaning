@@ -53,7 +53,6 @@ export const SceneBlender = new THREE.ShaderMaterial({
     'vec4 texel1 = texture2D( tDiffuse1, vUv );',  // Rain texture
     'vec4 texel2 = texture2D( tDiffuse2, vUv );',  // Words texture
 
-    // 'gl_FragColor = texel2 + min(texel1, vec4(0.5)) * 0.2;',
     'gl_FragColor = texel2 + min(texel1, vec4(0.5)) * 0.2;',
 
     '}'
