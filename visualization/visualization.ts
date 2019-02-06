@@ -19,6 +19,7 @@
  * Master class for visualizing the words, rain, etc of the scene.  It
  * delegates to SceneCompositor for blending and the scenes.
  */
+import Stats = require('stats-js');
 import * as THREE from 'three';
 
 import {ScenesCompositor} from './scenesCompositor'
@@ -40,7 +41,7 @@ const WIDTH = RIGHT - LEFT;
 
 // For the physics!
 const DT = 1;
-const NUM_RAINDROPS = 1000;
+const NUM_RAINDROPS = 50;
 const AXIS_COLOR = {
   h: 217,
   s: .60,
@@ -66,6 +67,7 @@ export class Visualization {
   axesWidths: number[];
   renderer: THREE.WebGLRenderer = new THREE.WebGLRenderer({antialias: true});
   animating = false;
+  camera = new THREE.OrthographicCamera(LEFT, RIGHT, TOP, BOTTOM, 2, 2000);
 
   // Controlable params for dat.gui
   numRaindrops: number = NUM_RAINDROPS;
@@ -78,6 +80,8 @@ export class Visualization {
   wordBrightness = .75;
   qWordBrightness = .2;
   circleBrightness = .75;
+
+  stats: any;
 
   constructor(private axes: string[][]) {
     this.start();
@@ -93,6 +97,7 @@ export class Visualization {
     this.axesToYPosArr = [];
     this.axesWidths = [];
     this.init();
+    this.addStats();
     if (!this.animating) {
       this.animate();
     }
@@ -104,10 +109,10 @@ export class Visualization {
     this.axisFont = new THREE.Font(axisFont);
 
     // Save some axis/ypos offline to speed up frame rate.
-    this.precomputeAxesYPos()
+    this.precomputeAxesYPos();
 
-        // Make scene that contains the rain.
-        this.rainScene = new THREE.Scene();
+    // Make scene that contains the rain.
+    this.rainScene = new THREE.Scene();
     this.makeRain();
 
     // Make scene that contains the inputted words.
@@ -121,11 +126,9 @@ export class Visualization {
     });
 
     // Add camera and renderer.
-    const camera =
-        new THREE.OrthographicCamera(LEFT, RIGHT, TOP, BOTTOM, 2, 2000);
-    camera.position.z = 1000;
+    this.camera.position.z = 1000;
     this.compositor = new ScenesCompositor(
-        this.rainScene, this.wordScene, camera, ELT_WIDTH, ELT_HEIGHT,
+        this.rainScene, this.wordScene, this.camera, ELT_WIDTH, ELT_HEIGHT,
         this.renderer);
   }
 
@@ -155,11 +158,14 @@ export class Visualization {
 
   /** Animation loop. Updates positions and rerenders. */
   private async animate() {
+    this.stats.begin();
     this.animating = true;
     requestAnimationFrame(() => this.animate());
     this.updateRain();
     this.updateWords();
+    // this.renderer.render(this.wordScene, this.camera)
     this.compositor.render();
+    this.stats.end();
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -530,5 +536,11 @@ export class Visualization {
     if (this.yPosToAxesArr[y]) return this.yPosToAxesArr[y];
     let axis = this.axesToYPosContinuous(y)
     return this.clampAxis(axis);
+  }
+
+  private addStats() {
+    this.stats = new Stats();
+    this.stats.showPanel(0);  // 0: fps, 1: ms, 2: mb, 3+: custom
+    document.body.appendChild(this.stats.dom);
   }
 }

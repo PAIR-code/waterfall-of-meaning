@@ -22,15 +22,6 @@ import {CopyShader} from './CopyShader';
 import {RainBlendShader} from './rainBlendShader';
 import {SceneBlender} from './sceneBlenderShader';
 
-const PARAMS = {
-  // FYI: Using 'THREE.NearestFilter' instead these makes rain
-  // render as dots rather than blurred streaks.
-  minFilter: THREE.LinearFilter,
-  magFilter: THREE.LinearFilter,
-  format: THREE.RGBAFormat,
-  // stencilBuffer: false,
-};
-
 export class ScenesCompositor {
   passes: Pass[] = [];
   constructor(
@@ -41,23 +32,27 @@ export class ScenesCompositor {
     renderer.setSize(w, h);
     renderer.autoClear = false;
     document.body.appendChild(renderer.domElement);
+    this.w = renderer.getDrawingBufferSize().width;
+    this.h = renderer.getDrawingBufferSize().height;
 
     // Words passes. Render words and save.
     const renderPassWords =
-        new RenderPass(wordScene, camera, this.renderTarget());
+        new RenderPass(wordScene, camera, this.newRenderTarget());
 
     // Rain passes. Render, save, and blend with the previous frame for blur.
     const renderPassRain =
-        new RenderPass(rainScene, camera, this.renderTarget());
-    const blendPassRain = new ShaderPass(RainBlendShader, this.renderTarget());
+        new RenderPass(rainScene, camera, this.newRenderTarget());
+    const blendPassRain = new ShaderPass(
+        RainBlendShader, this.newRenderTarget(this.w / 2, this.h / 2));
 
-    const savePassRain = new ShaderPass(CopyShader, this.renderTarget());
+    const savePassRain = new ShaderPass(CopyShader, this.newRenderTarget());
     savePassRain.setUniform('tDiffuse', blendPassRain.getRTTexture());
     blendPassRain.setUniform('tDiffuse2', renderPassRain.getRTTexture());
     blendPassRain.setUniform('tDiffuse1', savePassRain.getRTTexture());
 
     // Blend rain and words together
-    const blendPass = new ShaderPass(SceneBlender, this.renderTarget());
+    const blendPass = new ShaderPass(
+        SceneBlender, this.newRenderTarget(this.w / 2, this.h / 2));
     blendPass.setUniform('tDiffuse1', blendPassRain.getRTTexture());
     blendPass.setUniform('tDiffuse2', renderPassWords.getRTTexture());
 
@@ -65,16 +60,23 @@ export class ScenesCompositor {
     blendPass.renderToScreen = true;
 
     // Composite everything together (order matters here!)
-    // this.addPass(renderPassRain);
-    // this.addPass(blendPassRain);
-    // this.addPass(savePassRain);
+    this.addPass(renderPassRain);
+    this.addPass(blendPassRain);
+    this.addPass(savePassRain);
     this.addPass(renderPassWords);
     this.addPass(blendPass);
   }
 
   /** Create a render target with the params. */
-  renderTarget() {
-    return new THREE.WebGLRenderTarget(this.w, this.h, PARAMS);
+  newRenderTarget(w = this.w, h = this.h) {
+    const params = {
+      // FYI: Using 'THREE.NearestFilter' instead these makes rain
+      // render as dots rather than blurred streaks.
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
+      stencilBuffer: false,
+    };
+    return new THREE.WebGLRenderTarget(w, h, params);
   }
 
   /** Add pass to be rendered */
