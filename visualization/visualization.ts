@@ -24,6 +24,7 @@ import * as THREE from 'three';
 
 import {ScenesCompositor} from './scenesCompositor'
 import * as utils from './utils'
+import {Vector3} from 'three';
 
 const font = require('../fonts/Raleway_Light.json');
 const axisFont = require('../fonts/Raleway_Light.json');
@@ -40,8 +41,7 @@ const RIGHT = TOP / 4;
 const WIDTH = RIGHT - LEFT;
 
 // For the physics!
-const DT = 1;
-const NUM_RAINDROPS = 50;
+const NUM_RAINDROPS = 500;
 const AXIS_COLOR = {
   h: 217,
   s: .60,
@@ -68,6 +68,7 @@ export class Visualization {
   renderer: THREE.WebGLRenderer = new THREE.WebGLRenderer({antialias: true});
   animating = false;
   camera = new THREE.OrthographicCamera(LEFT, RIGHT, TOP, BOTTOM, 2, 2000);
+  clock = new THREE.Clock();
 
   // Controlable params for dat.gui
   numRaindrops: number = NUM_RAINDROPS;
@@ -79,7 +80,7 @@ export class Visualization {
   bgColor = BG_COLOR;
   wordBrightness = .75;
   qWordBrightness = .2;
-  circleBrightness = .75;
+  circleBrightness = .3;
 
   stats: any;
 
@@ -160,10 +161,10 @@ export class Visualization {
   private async animate() {
     this.stats.begin();
     this.animating = true;
+    const delta = this.clock.getDelta();
     requestAnimationFrame(() => this.animate());
-    this.updateRain();
-    this.updateWords();
-    // this.renderer.render(this.wordScene, this.camera)
+    this.updateRain(delta);
+    this.updateWords(delta);
     this.compositor.render();
     this.stats.end();
   }
@@ -208,13 +209,14 @@ export class Visualization {
     // The geometry of the word. Use the font created earlier.
     for (let i = 0; i < words.length; i++) {
       const singleWord = words[i];
-      const textGeometry = new THREE.TextGeometry(singleWord.toLowerCase(), {
-        font: this.font,
-        size: 2 * this.wordFontSize,
-        height: 2.5,
-        curveSegments: 12,
-        bevelThickness: .1,
-      });
+      const textGeometry =
+          new THREE.TextBufferGeometry(singleWord.toLowerCase(), {
+            font: this.font,
+            size: 2 * this.wordFontSize,
+            height: 1,
+            curveSegments: 2,
+            bevelEnabled: false,
+          });
 
       // Add the word mesh
       const wordMesh = new THREE.Mesh(textGeometry, textMaterial);
@@ -237,32 +239,34 @@ export class Visualization {
       const circle = new THREE.Mesh(circleGeometry, circleMaterial);
       circle.position.set(0, circleRad * 2, 0)
       group.add(circle);
-
-      // Make the blur trail circle.
-      const blurGeometry = new THREE.CircleGeometry(circleRad * 2, 32);
-      const blurMaterial =
-          new THREE.MeshBasicMaterial({color: blurColor, transparent: false});
-      const blurMesh = new THREE.Mesh(blurGeometry, blurMaterial);
-      this.rainScene.add(blurMesh);
-      this.blurs.push(blurMesh);
-    } else {
-      this.blurs.push(null);
     }
 
+    // Make the blur trail circle.
+    const blurGeometry = new THREE.CircleGeometry(
+        isQueryWord ? circleRad * 2 : circleRad / 10, 32);
+    const blurMaterial =
+        new THREE.MeshBasicMaterial({color: blurColor, transparent: false});
+    const blurMesh = new THREE.Mesh(blurGeometry, blurMaterial);
+    this.rainScene.add(blurMesh);
+    this.blurs.push(blurMesh);
     this.wordScene.add(group);
     return group;
   }
 
   /** Create rain (which is a THREE.points) and add it to the rain scene. */
   private makeRain() {
-    this.rainGeometry = new THREE.Geometry();
-    const sprite = utils.makeSprite()
+    this.rainGeometry = new THREE.BufferGeometry();
+    const raindrops = [];
     for (var i = 0; i < this.numRaindrops; i++) {
       var x = this.randomXPos();
       var y = this.randomRainYPos();
       var z = 0;
-      this.rainGeometry.vertices.push(new THREE.Vector3(x, y, z));
+      raindrops.push(x);
+      raindrops.push(y);
+      raindrops.push(z);
     }
+    this.rainGeometry.addAttribute(
+        'position', new THREE.BufferAttribute(new Float32Array(raindrops), 3));
 
     // Store the pulls (random direction of the rain) and velocity.
     this.rainGeometry.userData = {
@@ -271,24 +275,38 @@ export class Visualization {
       vels: Array.from({length: this.numRaindrops}, () => 0)
     }
 
-    const material = new THREE.PointsMaterial({size: 2, map: sprite});
+    const material =
+        new THREE.PointsMaterial({size: WIDTH / 20, map: utils.makeSprite()});
     var particles = new THREE.Points(this.rainGeometry, material);
-    this.rainGeometry.verticesNeedUpdate = true;
     this.rainScene.add(particles);
   }
 
   private axisWordMesh(word: string, material: THREE.Material) {
-    const textGeometry = new THREE.TextGeometry(word.toUpperCase(), {
+    const textGeometry = new THREE.TextBufferGeometry(word.toUpperCase(), {
       font: this.axisFont,
-      size: ELT_WIDTH / 100 * this.axisFontSize,
-      height: 5,
-      curveSegments: 12,
-      bevelThickness: .1,
+      size: this.axisFontSize * 5,
+      height: 1,
+      curveSegments: 2,
+      bevelEnabled: false,
     });
     const mesh = new THREE.Mesh(textGeometry, material);
     return mesh;
   }
 
+  /**
+   * Create an axis scale and add it to the scene.
+   * @param scaleHeight: height of the scale.
+   */
+  private makeAxisScale(scaleHeight: any) {
+    const scaleGeometry = new THREE.PlaneGeometry(120, 0.25);
+    const scaleMaterial = new THREE.MeshBasicMaterial({
+      color: utils.toHSL(this.axisColor.h, this.axisColor.s, this.axisColor.v)
+    });
+
+    const mesh = new THREE.Mesh(scaleGeometry, scaleMaterial);
+    mesh.position.set(-RIGHT * 0.02, scaleHeight, -5);
+    this.wordScene.add(mesh);
+  }
 
   /**
    * Create an axis word and add it to the scene.
@@ -303,20 +321,26 @@ export class Visualization {
     const mesh0 = this.axisWordMesh(axis[0], textMaterial);
     mesh0.position.set(-RIGHT * 3 / 4, 0, 0);
 
+
     // Word for the right side of the axis
     const mesh1 = this.axisWordMesh(axis[1], textMaterial);
     mesh1.geometry.computeBoundingBox();
-    const bb = mesh1.geometry.boundingBox;
-    mesh1.position.set(RIGHT * 3 / 4 - bb.max.x, 0, 0);
+    const bb1 = mesh1.geometry.boundingBox;
+    mesh1.position.set(RIGHT * 3 / 4 - bb1.max.x, 0, 0);
+
 
     // Group for the words.
     const group = new THREE.Group();
     group.add(mesh0);
     group.add(mesh1);
     const axisIdx = this.axes.indexOf(axis);
-    group.position.set(0, this.axesToYPos(axisIdx) - bb.max.y, -5);
+    const scaleHeight = this.axesToYPos(axisIdx);
+    group.position.set(0, scaleHeight - bb1.max.y * 3 / 2, -5);
     this.axesWidths.push(WIDTH * 3 / 4);
     this.wordScene.add(group);
+
+    // calculate the scale height
+    this.makeAxisScale(scaleHeight);
   }
 
   //////////////////////////////////////////////////////////////////////////////
@@ -324,28 +348,33 @@ export class Visualization {
   //////////////////////////////////////////////////////////////////////////////
 
   /** Update the position of the rain drops */
-  private updateRain() {
-    const verts = this.rainGeometry.vertices;
-    for (let i = 0; i < verts.length; i++) {
-      const vert = verts[i];
+  private updateRain(delta: number) {
+    const verts = this.rainGeometry.attributes.position.array;
+    for (let i = 0; i < NUM_RAINDROPS - 1; i++) {
+      const j = i * 3;
+      const vert = new Vector3(verts[j], verts[j + 1], verts[j + 2]);
       const pull = this.rainGeometry.userData.pulls[i];
       const vel = this.rainGeometry.userData.vels[i];
-      const posVel = this.getNewLoc(vert, vel, pull, true);
-      vert.set(posVel.x, posVel.y, posVel.z);
+      const posVel = this.getNewLoc(vert, vel, pull, true, 1, delta);
+      verts[j] = posVel.x;
+      verts[j + 1] = posVel.y;
+      verts[j + 2] = posVel.z;
       this.rainGeometry.userData.vels[i] = posVel.v;
 
       // When the rain hits the bottom, wrap (rather than continuously
       // generating more rain.)
-      if (vert.y < BOTTOM) {
-        vert.set(this.randomXPos(), TOP * 1.2, 0);
+      if (posVel.y < BOTTOM) {
+        verts[j] = this.randomXPos();
+        verts[j + 1] = TOP * 1.2;
+        verts[j + 2] = 0;
         this.rainGeometry.userData.vels[i] = 0;
       }
     }
-    this.rainGeometry.verticesNeedUpdate = true;
+    this.rainGeometry.attributes.position.needsUpdate = true;
   }
 
   /** Update the position of the words. */
-  private updateWords() {
+  private updateWords(delta: number) {
     for (let i = this.words.length - 1; i > -1; i--) {
       let wordGroup = this.words[i];
       const vel = wordGroup.userData.vel;
@@ -365,8 +394,8 @@ export class Visualization {
 
       // The scale the weighted average of those (weighted by position between
       // them.)
-      let scale = utils.lerp(blendVal, Math.abs(prevBias), Math.abs(bias)) * 2;
-      scale = Math.pow(scale, 3);
+      let scale = utils.lerp(blendVal, Math.abs(prevBias), Math.abs(bias));
+      scale = Math.pow(scale, 3) * 4;
       if (!isQueryWord) {
         wordGroup.scale.x = scale;
         wordGroup.scale.y = scale;
@@ -374,7 +403,7 @@ export class Visualization {
         wordGroup.scale.x = queryWordScale;
         wordGroup.scale.y = queryWordScale;
       }
-      wordGroup.children[0].children[0].material.opacity = scale;
+      wordGroup.children[0].children[0].material.opacity = scale / 2;
 
       // Axis width (in 3js space.)
       const axesWidth = this.axesWidths[axesIdx];
@@ -387,21 +416,21 @@ export class Visualization {
 
       let posVel;
       // Caluclate and set the new position.
-      posVel =
-          this.getNewLoc(pos, vel, pull, false, isQueryWord ? 1 : bias * .99);
+      posVel = this.getNewLoc(
+          pos, vel, pull, false, isQueryWord ? 1 : bias * .99, delta);
 
       wordGroup.position.set(posVel.x, posVel.y, posVel.z);
       wordGroup.userData.vel = posVel.v;
 
       // Update the blur trail's poisition and scale.
-      if (isQueryWord) {
-        const blur = this.blurs[i]
-        blur.position.set(
-            posVel.x, posVel.y + queryWordScale * this.wordFontSize * 4,
-            posVel.z);
-        blur.scale.x = queryWordScale;
-        blur.scale.y = queryWordScale;
-      }
+      // if (isQueryWord) {
+      const blur = this.blurs[i]
+      blur.position.set(
+          posVel.x, posVel.y + queryWordScale * this.wordFontSize * 4,
+          posVel.z);
+      blur.scale.x = queryWordScale;
+      blur.scale.y = queryWordScale;
+      // }
       // If the mesh is offscreen, delete all its components.
       if (posVel.y < BOTTOM + 5) {
         this.deleteWord(i, wordGroup);
@@ -455,25 +484,29 @@ export class Visualization {
    */
   private getNewLoc(
       prevPos: THREE.Vector3, prevV: number, xForce: number, isRain: boolean,
-      bias = 1) {
+      bias = 1, delta: number) {
     let speed = isRain ? this.rainSpeed : this.wordSpeed;
-    speed = speed * Math.abs(Math.pow(bias, 3));
+
+    // Removing speed change based on word bias for now, but leaving in the
+    // logic for debugging purposes.
+    // speed = speed * Math.abs(Math.pow(bias, 3));
+
+    const dt = 50 * delta;
 
     // Update x position with the force.
-    const x = prevPos.x + xForce * DT * speed;
+    const x = prevPos.x + xForce * dt * speed;
 
     // Same with Y.
     const fGravity = -1 / 500;
-    let v = prevV + fGravity * DT * speed;
-    let y = prevPos.y + v * DT;
+    let v = prevV + fGravity * dt * speed;
+    let y = prevPos.y + v * dt;
     let z = prevPos.z;
 
     // Bounce is less high for words, cause it looks pretty annoying.
     let vBounce;
     if (!isRain) {
       vBounce = 1 / 100 + Math.random() / 20;
-    }
-    if (isRain) {
+    } else {
       vBounce = -v * Math.random() / 3;
     }
 
