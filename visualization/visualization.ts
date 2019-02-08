@@ -194,12 +194,14 @@ export class Visualization {
     const bgColor = new THREE.Color(utils.toHSL(id, .5, this.circleBrightness));
     const blurColor =
         new THREE.Color(utils.toHSL(id, 1., this.circleBrightness));
+
     // Make the material for the text itself.
     const textMaterial = new THREE.MeshBasicMaterial({
       color: wordColor,
       opacity: Math.abs(similarities[0] * 2),
       transparent: true
     });
+
     // Make all of this into a group.
     var group = new THREE.Group();
     group.userData = {vel: 0, pulls: similarities, isQueryWord};
@@ -271,7 +273,7 @@ export class Visualization {
     // Store the pulls (random direction of the rain) and velocity.
     this.rainGeometry.userData = {
       pulls: Array.from(
-          {length: this.numRaindrops}, () => (Math.random() - 0.5) / 20),
+          {length: this.numRaindrops}, () => (Math.random() - 0.5) / 10),
       vels: Array.from({length: this.numRaindrops}, () => 0)
     }
 
