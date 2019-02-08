@@ -44,11 +44,18 @@ function parseURL(): {[id: string]: string;} {
   return {};
 }
 
+
+// Parse the params and adjust accordingly.
+const params = parseURL();
+
 // Use threejs by default and allow for url param to use other UI in setup().
 let USE_3JS = true;
+if ('3js' in params) {
+  USE_3JS = (params['3js'] === 'true');
+}
 let LEFT_AXIS_WORD = 'he';
 let RIGHT_AXIS_WORD = 'she';
-let NEIGHBOR_COUNT = 20;
+let NEIGHBOR_COUNT = 100;
 let emb: WordEmbedding;
 let vis: Visualization;
 
@@ -78,6 +85,7 @@ const numNeighborsInputElement =
 if (USE_3JS) {
   vis = new Visualization(visAxes);
   const gui = new dat.GUI();
+  gui.close();
   gui.add(vis, 'numRaindrops').onChange(() => vis.start());
   gui.add(vis, 'rainSpeed').onChange(() => vis.start());
   gui.add(vis, 'wordSpeed').onChange(() => vis.start());
@@ -141,8 +149,10 @@ async function projectWordsVis(word: string, id: number) {
 }
 
 /** Show results, either with the 3js UI or the standard UI. */
-async function showResults() {
-  const qWord = textInputElement.value;
+async function showResults(qWord: string = null, colorId: number = null) {
+  if (!qWord) {
+    qWord = textInputElement.value;
+  }
   // If the word is not found show the error message,
   if (emb.hasWord(qWord)) {
     errorElement.style.display = 'none';
@@ -153,7 +163,7 @@ async function showResults() {
 
   // Show the results with the 3js UI.
   if (USE_3JS) {
-    projectWordsVis(qWord, Math.random() * 360);
+    projectWordsVis(qWord, colorId ? colorId : Math.random() * 360);
   }
   // Show results with the other UI.
   else {
@@ -186,11 +196,11 @@ async function showResults() {
   }
 }
 
-textInputElement.addEventListener('change', showResults);
+textInputElement.addEventListener('change', () => showResults());
 
+// Add broadcast channel to receive inputs from input screen.
 const bc = new BroadcastChannel('word_flow_channel');
-bc.onmessage = message =>
-    projectWordsVis(message.data.word, message.data.colorId);
+bc.onmessage = message => showResults(message.data.word, message.data.colorId);
 
 function createWordDiv(
     text: string, color: string, margin: string): HTMLDivElement {
@@ -238,16 +248,9 @@ async function setup() {
   loadingElement.style.display = 'none';
   bodyElement.style.display = '';
 
-
-  // Parse the params and adjust accordingly.
-  const params = parseURL();
-  if ('3js' in params) {
-    USE_3JS = (params['3js'] === 'true');
-  }
-
   // If it's specified to only use the seperate UI, hide the bar at the top.
   if (('hideInput' in params) && (params['hideInput'] === 'true')) {
-    bodyElement.style.display = 'none';
+    document.getElementById('input_bar').style.display = 'none';
   }
 }
 
