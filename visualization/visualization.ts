@@ -19,12 +19,12 @@
  * Master class for visualizing the words, rain, etc of the scene.  It
  * delegates to SceneCompositor for blending and the scenes.
  */
-import Stats = require('stats-js');
+import * as Stats from 'stats-js';
 import * as THREE from 'three';
+import {Vector3} from 'three';
 
 import {ScenesCompositor} from './scenesCompositor'
 import * as utils from './utils'
-import {Vector3} from 'three';
 
 const font = require('../fonts/Raleway_Light.json');
 const axisFont = require('../fonts/Raleway_Light.json');
@@ -395,7 +395,12 @@ export class Visualization {
       // The scale the weighted average of those (weighted by position between
       // them.)
       let scale = utils.lerp(blendVal, Math.abs(prevBias), Math.abs(bias));
-      scale = Math.pow(scale, 3) * 4;
+
+      // Turn the scale in to an exponential scale. Note that these parameters
+      // are chosen purely on aesthetic bases.
+      const power = 3;
+      const scaleFactor = 4;
+      scale = Math.pow(scale, power) * scaleFactor;
       if (!isQueryWord) {
         wordGroup.scale.x = scale;
         wordGroup.scale.y = scale;
@@ -423,14 +428,12 @@ export class Visualization {
       wordGroup.userData.vel = posVel.v;
 
       // Update the blur trail's poisition and scale.
-      // if (isQueryWord) {
       const blur = this.blurs[i]
       blur.position.set(
           posVel.x, posVel.y + queryWordScale * this.wordFontSize * 4,
           posVel.z);
       blur.scale.x = queryWordScale;
       blur.scale.y = queryWordScale;
-      // }
       // If the mesh is offscreen, delete all its components.
       if (posVel.y < BOTTOM + 5) {
         this.deleteWord(i, wordGroup);
@@ -484,7 +487,7 @@ export class Visualization {
    */
   private getNewLoc(
       prevPos: THREE.Vector3, prevV: number, xForce: number, isRain: boolean,
-      bias = 1, delta: number) {
+      bias: number, delta: number) {
     let speed = isRain ? this.rainSpeed : this.wordSpeed;
 
     // Removing speed change based on word bias for now, but leaving in the
@@ -572,7 +575,7 @@ export class Visualization {
   }
 
   private addStats() {
-    this.stats = new Stats();
+    this.stats = Stats.default();
     this.stats.showPanel(0);  // 0: fps, 1: ms, 2: mb, 3+: custom
     document.body.appendChild(this.stats.dom);
   }

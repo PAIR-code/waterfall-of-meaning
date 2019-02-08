@@ -141,6 +141,11 @@
   resolved "https://registry.yarnpkg.com/@types/semver/-/semver-5.5.0.tgz#146c2a29ee7d3bae4bf2fcb274636e264c813c45"
   integrity sha512-41qEJgBH/TWgo5NFSvBCJ1qkoi3Q6ONSF2avrHq1LVEZfYpdHmj0y9SuTK+u9ZhG1sYQKBL1AWXKyLWP4RaUoQ==
 
+"@types/stats@^0.16.30":
+  version "0.16.30"
+  resolved "https://registry.yarnpkg.com/@types/stats/-/stats-0.16.30.tgz#deb5fa6e59c6d67bd6e0f61a51ef630a83a84ce9"
+  integrity sha1-3rX6blnG1nvW4PYaUe9jCoOoTOk=
+
 "@types/three@^0.93.17":
   version "0.93.19"
   resolved "https://registry.yarnpkg.com/@types/three/-/three-0.93.19.tgz#6ab16dd9b047e3c4ba9421b590863a86445a0dc2"
@@ -4364,6 +4369,11 @@ static-module@^2.2.0:
     shallow-copy "~0.0.1"
     static-eval "^2.0.0"
     through2 "~2.0.3"
+
+stats-js@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/stats-js/-/stats-js-1.0.0.tgz#2bae33b4ec3c84939e7622a9ed0de1b44254e977"
+  integrity sha512-Qhuj/FgQ0xzmP2/tKTXjJLpkvdy6Eh71CweupNDJjRuUUSeAXP6NLy8yNHtnSY0DsOigh8TdyixyOEzlZVPDOA==
 
 "statuses@>= 1.4.0 < 2":
   version "1.5.0"

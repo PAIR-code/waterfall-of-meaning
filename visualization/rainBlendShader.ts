@@ -53,13 +53,6 @@ export const RainBlendShader = new THREE.ShaderMaterial({
     'vec4 texel2 = texture2D( tDiffuse2, vUv );',  // Previous step
 
     'gl_FragColor = texel1  + texel2 - 0.002;',
-
-    // If the color is clipping to white, just make it the normal color.
-    // 'gl_FragColor = texel1 * .7 * when_gt(gl_FragCOlor, vec4(.99));',
-
-    // 'vec4 gt = vec4(float(any(greaterThan(gl_FragColor, vec4(.99)))));',
-    // 'gl_FragColor = (texel1 * .7) * gt + (vec4(1.) - gt)*gl_FragColor;',
-
     '}',
   ].join('\n')
 })
