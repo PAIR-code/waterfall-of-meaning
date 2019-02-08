@@ -58,6 +58,12 @@ const visAxes = [
   ['weak', 'strong'],
   ['he', 'she'],
 ];
+/**
+ * Norm of each axis (that is, the average of all other vocab words projected
+ * on to that axis.)
+ */
+let axisNorms: Float32Array;
+
 
 const loadingElement = document.getElementById('loading');
 const bodyElement = document.getElementById('body');
@@ -72,9 +78,22 @@ const wordsContainerElement = document.getElementById('words-container');
 const numNeighborsInputElement =
     document.getElementById('num-neighbors') as HTMLInputElement;
 
-// Just throwing this constant in willy-nilly for now. Should seperate different
-// frontends at some point? But not sure how precise we really want to be here,
-// this is art after all :)
+/**
+ * Calculate the norms for each of the axes
+ * @param axes pairs of strings that create an axis (e.g., [she, he])
+ */
+async function calculateNorms(axes: string[][]) {
+  const axisNorms = new Float32Array(axes.length);
+  for (let i = 0; i < axes.length; i++) {
+    const axis = axes[i];
+    const rightWord = axis[0];
+    const leftWord = axis[1];
+    const x = await emb.computeNormForAxis(rightWord, leftWord).data();
+    axisNorms[i] = x[0];
+  }
+  return Float32Array.from(axisNorms);
+}
+
 if (USE_3JS) {
   vis = new Visualization(visAxes);
   const gui = new dat.GUI();
@@ -131,8 +150,13 @@ async function projectWordsVis(word: string, id: number) {
     const colorId = Math.floor(id * 36 + i / knn.length * 30) % 360
 
     const sims: number[] = [];
-    for (const axes of visAxes) {
+    for (let j = 0; j < visAxes.length; j++) {
+      const axes = visAxes[j];
       let sim = await emb.project(neighbor, axes[0], axes[1]);
+
+      // Subtract the norm of the axis (that is, the average of all other vocab
+      // words projected on to that axis.)
+      sim -= axisNorms[j];
       sim = stretchValueVis(sim);
       sims.push(sim);
     }
@@ -249,6 +273,8 @@ async function setup() {
   if (('hideInput' in params) && (params['hideInput'] === 'true')) {
     bodyElement.style.display = 'none';
   }
+  // Calculate the axis norms.
+  axisNorms = await calculateNorms(visAxes);
 }
 
 setup();
