@@ -35,7 +35,7 @@ export class WordEmbedding {
     return this.words.indexOf(word) != -1;
   }
 
-  computeBiasDirection(word1: string, word2: string): tf.Tensor1D {
+  computeDirection(word1: string, word2: string): tf.Tensor1D {
     return tf.tidy(() => {
       const leftAxisWordTensor = this.getEmbedding(word1);
       const rightAxisWordTensor = this.getEmbedding(word2);
@@ -70,7 +70,7 @@ export class WordEmbedding {
       if (mergedKey in this.cachedDirections) {
         biasDirection = this.cachedDirections[mergedKey];
       } else {
-        biasDirection = this.computeBiasDirection(axisLeft, axisRight);
+        biasDirection = this.computeDirection(axisLeft, axisRight);
         this.cachedDirections[mergedKey] = tf.keep(biasDirection);
       }
       return wordEmbedding.dot(biasDirection);
@@ -106,7 +106,7 @@ export class WordEmbedding {
         const axis = axes[i];
         const word1 = axis[0];
         const word2 = axis[1];
-        directions.push(this.computeBiasDirection(word1, word2));
+        directions.push(this.computeDirection(word1, word2));
       }
 
       // Get their averages.
