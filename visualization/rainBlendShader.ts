@@ -53,7 +53,6 @@ export const RainBlendShader = new THREE.ShaderMaterial({
     'vec4 texel2 = texture2D( tDiffuse2, vUv );',  // Previous step
 
     'gl_FragColor = texel1  + texel2 - 0.002;',
-
     '}',
   ].join('\n')
 })

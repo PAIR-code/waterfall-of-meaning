@@ -99,9 +99,10 @@ export class Pass {
   protected camera: THREE.Camera;
   protected renderTarget: THREE.WebGLRenderTarget;
   render(renderer: THREE.WebGLRenderer) {
+    const clear = true;
     renderer.render(
         this.scene, this.camera, this.renderToScreen ? null : this.renderTarget,
-        true);
+        clear);
   }
   getRTTexture() {
     return this.renderTarget.texture;
@@ -134,7 +135,7 @@ export class ShaderPass extends Pass {
     this.uniforms = shader.uniforms;
 
     // Add a quad as our render screen;
-    const quad = new THREE.Mesh(new THREE.PlaneBufferGeometry(2, 2), null);
+    const quad = new THREE.Mesh(new THREE.PlaneBufferGeometry(2, 2));
     quad.frustumCulled = false;  // Avoid getting clipped
     this.scene.add(quad);
     quad.material = shader;
