@@ -55,7 +55,7 @@ if ('3js' in params) {
 }
 let LEFT_AXIS_WORD = 'he';
 let RIGHT_AXIS_WORD = 'she';
-let NEIGHBOR_COUNT = 20;
+let NEIGHBOR_COUNT = 100;
 let emb: WordEmbedding;
 let vis: Visualization;
 

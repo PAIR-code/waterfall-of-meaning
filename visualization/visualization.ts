@@ -73,13 +73,13 @@ export class Visualization {
   // Controlable params for dat.gui
   numRaindrops: number = NUM_RAINDROPS;
   rainSpeed: number = 1;
-  wordSpeed: number = 1;
+  wordSpeed: number = .5;
   axisFontSize: number = 1;
   wordFontSize: number = 1;
   axisColor = AXIS_COLOR;
   bgColor = BG_COLOR;
   wordBrightness = .75;
-  qWordBrightness = .2;
+  qWordBrightness = .75;
   circleBrightness = .3;
 
   stats: any;
@@ -203,7 +203,7 @@ export class Visualization {
     // Make all of this into a group.
     var group = new THREE.Group();
     group.userData = {vel: 0, pulls: similarities, isQueryWord};
-    const startYPos = isQueryWord ? TOP : TOP + idxFromQuery * .1;
+    const startYPos = isQueryWord ? TOP : TOP + idxFromQuery + WIDTH / 5;
     group.position.set(this.centerXPos(), startYPos, 0);
 
     // The geometry of the word. Use the font created earlier.
