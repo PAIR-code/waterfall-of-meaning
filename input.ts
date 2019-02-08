@@ -44,7 +44,7 @@ function hideAutocomplete(hide: boolean) {
 }
 
 function getBgColor(id: number) {
-  return utils.toHSL((id * 36) % 360, 50, 75);
+  return utils.toHSL((id * 36) % 360, .5, .75);
 }
 
 /**
