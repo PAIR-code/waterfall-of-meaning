@@ -34,8 +34,9 @@ export function makeSprite() {
   const context = canvas.getContext('2d');
 
   context.beginPath();
-  context.arc(size / 2, size / 2, size / 2, 0, 2 * Math.PI, false);
-  context.fillStyle = 'white';
+  context.ellipse(size / 2, size / 2, size / 10, size / 2, 0, 0, 2 * Math.PI);
+
+  context.fillStyle = '#777';
   context.fill();
 
   const sprite = new THREE.Texture(canvas);

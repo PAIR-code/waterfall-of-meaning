@@ -141,6 +141,7 @@ textInput.onkeyup = (ev: KeyboardEvent) => {
         // If the user clicks an option, select that one.
         option.onclick = () => {
           textInput.value = word;
+          button.removeAttribute('disabled');
         }
       }
     } else {
