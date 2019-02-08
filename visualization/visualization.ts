@@ -88,17 +88,17 @@ export class Visualization {
     this.start();
   }
   start() {
-    const child = document.body.getElementsByTagName('canvas');
-    if (child.length > 0) {
-      document.body.removeChild(child[0]);
+    const children = document.body.getElementsByTagName('canvas');
+    for (let i = 0; i < children.length; i++) {
+      children[i].parentElement.removeChild(children[i]);
     }
+    this.addStats();
     this.words = [];
     this.blurs = [];
     this.yPosToAxesArr = [];
     this.axesToYPosArr = [];
     this.axesWidths = [];
     this.init();
-    this.addStats();
     if (!this.animating) {
       this.animate();
     }
@@ -243,7 +243,7 @@ export class Visualization {
 
     // Make the blur trail circle.
     const blurGeometry = new THREE.CircleGeometry(
-        isQueryWord ? circleRad * 2 : circleRad / 10, 32);
+        isQueryWord ? circleRad * 2 : circleRad / 2, 32);
     const blurMaterial =
         new THREE.MeshBasicMaterial({color: blurColor, transparent: false});
     const blurMesh = new THREE.Mesh(blurGeometry, blurMaterial);
@@ -398,8 +398,8 @@ export class Visualization {
 
       // Turn the scale in to an exponential scale. Note that these parameters
       // are chosen purely on aesthetic bases.
-      const power = 3;
-      const scaleFactor = 4;
+      const power = 4;
+      const scaleFactor = 5;
       scale = Math.pow(scale, power) * scaleFactor;
       if (!isQueryWord) {
         wordGroup.scale.x = scale;
@@ -408,7 +408,7 @@ export class Visualization {
         wordGroup.scale.x = queryWordScale;
         wordGroup.scale.y = queryWordScale;
       }
-      wordGroup.children[0].children[0].material.opacity = scale / 2;
+      wordGroup.children[0].children[0].material.opacity = scale;
 
       // Axis width (in 3js space.)
       const axesWidth = this.axesWidths[axesIdx];
@@ -428,12 +428,12 @@ export class Visualization {
       wordGroup.userData.vel = posVel.v;
 
       // Update the blur trail's poisition and scale.
-      const blur = this.blurs[i]
+      const blur = this.blurs[i];
+      const yPos = isQueryWord ? queryWordScale * 4 : 1;
       blur.position.set(
-          posVel.x, posVel.y + queryWordScale * this.wordFontSize * 4,
-          posVel.z);
-      blur.scale.x = queryWordScale;
-      blur.scale.y = queryWordScale;
+          posVel.x, posVel.y + this.wordFontSize * yPos, posVel.z);
+      blur.scale.x = isQueryWord ? queryWordScale : 1;
+      blur.scale.y = isQueryWord ? queryWordScale : 1;
       // If the mesh is offscreen, delete all its components.
       if (posVel.y < BOTTOM + 5) {
         this.deleteWord(i, wordGroup);
@@ -449,11 +449,11 @@ export class Visualization {
     if (wordGroup.userData.isQueryWord) {
       const circle = wordGroupKids[1] as THREE.Mesh;
       this.deleteMesh(circle);  // Circle
-
-      // Delete blur.
-      const blur = this.blurs[wordIdx];
-      this.deleteMesh(blur);
     }
+
+    // Delete blur.
+    const blur = this.blurs[wordIdx];
+    this.deleteMesh(blur);
     this.blurs.splice(wordIdx, 1);
 
     // Delete words (could be multiple words, like "orthopedic surgeon.")

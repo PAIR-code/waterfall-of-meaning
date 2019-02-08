@@ -85,6 +85,7 @@ const numNeighborsInputElement =
 if (USE_3JS) {
   vis = new Visualization(visAxes);
   const gui = new dat.GUI();
+  gui.close();
   gui.add(vis, 'numRaindrops').onChange(() => vis.start());
   gui.add(vis, 'rainSpeed').onChange(() => vis.start());
   gui.add(vis, 'wordSpeed').onChange(() => vis.start());
