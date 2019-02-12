@@ -35,7 +35,7 @@ export class WordEmbedding {
     return this.words.indexOf(word) != -1;
   }
 
-  computeBiasDirection(word1: string, word2: string): tf.Tensor1D {
+  computeDirection(word1: string, word2: string): tf.Tensor1D {
     return tf.tidy(() => {
       const leftAxisWordTensor = this.getEmbedding(word1);
       const rightAxisWordTensor = this.getEmbedding(word2);
@@ -70,7 +70,7 @@ export class WordEmbedding {
       if (mergedKey in this.cachedDirections) {
         biasDirection = this.cachedDirections[mergedKey];
       } else {
-        biasDirection = this.computeBiasDirection(axisLeft, axisRight);
+        biasDirection = this.computeDirection(axisLeft, axisRight);
         this.cachedDirections[mergedKey] = tf.keep(biasDirection);
       }
       return wordEmbedding.dot(biasDirection);
@@ -92,5 +92,30 @@ export class WordEmbedding {
     // Sort words w.r.t.their direction similarity
     dirSimilarities.sort((left, right) => {return left[1] < right[1] ? -1 : 1});
     return dirSimilarities;
+  }
+  /**
+   * Computes the average of the values of every word in the dictionary along
+   * the axis. This is for adding a bias term when actually projecting later.
+   * @param axes
+   */
+  computeAverageWordSimilarity(axes: string[][]): tf.Tensor {
+    return tf.tidy(() => {
+      // Collect the directions for each axis.
+      const directions = [];
+      for (let i = 0; i < axes.length; i++) {
+        const axis = axes[i];
+        const word1 = axis[0];
+        const word2 = axis[1];
+        directions.push(this.computeDirection(word1, word2));
+      }
+
+      // Get their averages.
+      const directionsTensor = tf.stack(directions);
+      const transposeA = false;
+      const transposeB = true;
+      const biases = tf.matMul(
+          directionsTensor, this.embeddingTensor, transposeA, transposeB);
+      return biases.mean(1);
+    });
   }
 }

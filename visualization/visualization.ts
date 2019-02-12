@@ -351,11 +351,25 @@ export class Visualization {
 
       // Turn the scale in to an exponential scale. Note that these parameters
       // are chosen purely on aesthetic bases.
+<<<<<<< HEAD
       const power = 2;
       const scaleFactor = 5;
       const addFactor = .2;
       scale = Math.pow(scale + addFactor, power) * scaleFactor;
       scale = isQueryWord ? queryWordScale : scale;
+=======
+      const power = 3;
+      const scaleFactor = 7;
+      scale = Math.pow(scale, power) * scaleFactor;
+      if (!isQueryWord) {
+        wordGroup.scale.x = scale;
+        wordGroup.scale.y = scale;
+        wordGroup.children[0].children[0].material.opacity = scale;
+      } else {
+        wordGroup.scale.x = queryWordScale;
+        wordGroup.scale.y = queryWordScale;
+      }
+>>>>>>> c080fb6466b48fcf7391f0d6568a845429a3b66a
 
       // Axis width (in 3js space.)
       const axesWidth = this.axesWidths[axesIdx];
