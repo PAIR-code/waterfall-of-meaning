@@ -181,8 +181,6 @@ async function setup() {
 async function startWaiting() {
   const lastInput = INPUT_ID;
   await utils.sleep(AUTO_INPUT_TIMEOUT);
-  console.log('woke up!')
-  console.log(lastInput, INPUT_ID)
   if (lastInput === INPUT_ID) {
     defaultInputsId++;
     sendWord(defaultInputs[defaultInputsId % defaultInputs.length]);
