@@ -55,14 +55,14 @@ if ('3js' in params) {
 }
 let LEFT_AXIS_WORD = 'he';
 let RIGHT_AXIS_WORD = 'she';
-let NEIGHBOR_COUNT = 100;
+let NEIGHBOR_COUNT = 50;
 let emb: WordEmbedding;
 let vis: Visualization;
 
 const visAxes = [
   ['good', 'bad'],
-  ['expensive', 'cheap'],
   ['weak', 'strong'],
+  ['expensive', 'cheap'],
   ['he', 'she'],
 ];
 /**
