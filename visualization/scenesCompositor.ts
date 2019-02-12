@@ -20,14 +20,12 @@
 import * as THREE from 'three';
 import {CopyShader} from './CopyShader';
 import {RainBlendShader} from './rainBlendShader';
-import {SceneBlender} from './sceneBlenderShader';
 
 export class ScenesCompositor {
   passes: Pass[] = [];
   constructor(
-      rainScene: THREE.Scene, wordScene: THREE.Scene, camera: THREE.Camera,
-      private w: number, private h: number,
-      private renderer: THREE.WebGLRenderer) {
+      rainScene: THREE.Scene, camera: THREE.Camera, private w: number,
+      private h: number, private renderer: THREE.WebGLRenderer) {
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(w, h);
     renderer.autoClear = false;
@@ -35,36 +33,26 @@ export class ScenesCompositor {
     this.w = renderer.getDrawingBufferSize().width;
     this.h = renderer.getDrawingBufferSize().height;
 
-    // Words passes. Render words and save.
-    const renderPassWords =
-        new RenderPass(wordScene, camera, this.newRenderTarget());
 
     // Rain passes. Render, save, and blend with the previous frame for blur.
     const renderPassRain =
         new RenderPass(rainScene, camera, this.newRenderTarget());
-    const blendPassRain = new ShaderPass(
+
+    const blendPass = new ShaderPass(
         RainBlendShader, this.newRenderTarget(this.w / 2, this.h / 2));
 
-    const savePassRain = new ShaderPass(CopyShader, this.newRenderTarget());
-    savePassRain.setUniform('tDiffuse', blendPassRain.getRTTexture());
-    blendPassRain.setUniform('tDiffuse2', renderPassRain.getRTTexture());
-    blendPassRain.setUniform('tDiffuse1', savePassRain.getRTTexture());
+    const savePass = new ShaderPass(CopyShader, this.newRenderTarget());
+    savePass.setUniform('tDiffuse', blendPass.getRTTexture());
 
-    // Blend rain and words together
-    const blendPass = new ShaderPass(
-        SceneBlender, this.newRenderTarget(this.w / 2, this.h / 2));
-    blendPass.setUniform('tDiffuse1', blendPassRain.getRTTexture());
-    blendPass.setUniform('tDiffuse2', renderPassWords.getRTTexture());
+    blendPass.setUniform('tDiffuse1', savePass.getRTTexture());
+    blendPass.setUniform('tDiffuse2', renderPassRain.getRTTexture());
 
-    // output pass
-    blendPass.renderToScreen = true;
+    savePass.renderToScreen = true;
 
     // Composite everything together (order matters here!)
     this.addPass(renderPassRain);
-    this.addPass(blendPassRain);
-    this.addPass(savePassRain);
-    this.addPass(renderPassWords);
     this.addPass(blendPass);
+    this.addPass(savePass);
   }
 
   /** Create a render target with the params. */
@@ -100,9 +88,11 @@ export class Pass {
   protected renderTarget: THREE.WebGLRenderTarget;
   render(renderer: THREE.WebGLRenderer) {
     const clear = true;
-    renderer.render(
-        this.scene, this.camera, this.renderToScreen ? null : this.renderTarget,
-        clear);
+    renderer.render(this.scene, this.camera, this.renderTarget, clear);
+    if (this.renderToScreen) {
+      const renderTarget = null;
+      renderer.render(this.scene, this.camera, renderTarget, clear);
+    }
   }
   getRTTexture() {
     return this.renderTarget.texture;

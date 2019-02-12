@@ -92,11 +92,12 @@ if (USE_3JS) {
   gui.add(vis, 'numRaindrops').onChange(() => vis.start());
   gui.add(vis, 'rainSpeed').onChange(() => vis.start());
   gui.add(vis, 'wordSpeed').onChange(() => vis.start());
-  gui.add(vis, 'axisFontSize').onChange(() => vis.start());
-  gui.add(vis, 'wordFontSize').onChange(() => vis.start());
+  gui.add(vis, 'axisSize').onChange(() => vis.start());
+  gui.add(vis, 'wordSize').onChange(() => vis.start());
   gui.add(vis, 'wordBrightness').onChange(() => vis.start());
   gui.add(vis, 'qWordBrightness').onChange(() => vis.start());
   gui.add(vis, 'circleBrightness').onChange(() => vis.start());
+  gui.add(vis, 'rainBrightness').onChange(() => vis.start());
   gui.addColor(vis, 'axisColor').onChange(() => vis.start());
   gui.addColor(vis, 'bgColor').onChange(() => vis.start());
   document.getElementById('container').hidden = true;
@@ -133,14 +134,6 @@ async function projectWordsVis(word: string, id: number) {
 
   for (let i = 0; i < knn.length; i++) {
     const neighbor = knn[i];
-
-    // Each neighbor has a slightly different color (within a same color range.)
-    // The colors are ranked by similarity to the query word.
-    // This color will be a hue (for an hsl color.) So, the id is multiplied by
-    // 36 to put it in range of 0-360 (the range for a hue.) Then, we add a bit
-    // of color variation up through + 70 of the hue.
-    const colorId = Math.floor(id * 36 + i / knn.length * 30) % 360
-
     const sims: number[] = [];
     for (let j = 0; j < visAxes.length; j++) {
       const axes = visAxes[j];
@@ -152,8 +145,25 @@ async function projectWordsVis(word: string, id: number) {
       sim = stretchValueVis(sim);
       sims.push(sim);
     }
+
+    // Each neighbor has a slightly different color (within a same color range.)
+    // The colors are ranked by how polarized they are overall.
+    // This color will be a hue (for an hsl color.) So, the id is multiplied by
+    // 36 to put it in range of 0-360 (the range for a hue.)
+    const averageSim = averageAbs(sims);
+    const colorId = Math.floor(id * 36 + averageSim * 100) % 360
+
     vis.addWord(neighbor, sims, neighbor === word, colorId, i);
   }
+}
+
+/** Average the absolute values of the array. */
+function averageAbs(sims: number[]): number {
+  let sum = 0;
+  sims.forEach(sim => {
+    sum += Math.abs(sim);
+  });
+  return sum / sims.length;
 }
 
 /** Show results, either with the 3js UI or the standard UI. */
