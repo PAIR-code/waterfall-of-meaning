@@ -19,6 +19,7 @@ import * as dat from 'dat.gui';
 import Dexie from 'dexie';
 
 import * as utils from './visualization/utils';
+// import {Visualization} from './visualization/visualization'
 import {Visualization} from './visualization/visualization'
 import {WordEmbedding} from './word_embedding';
 
@@ -94,6 +95,7 @@ if (USE_3JS) {
   gui.add(vis, 'wordBrightness').onChange(() => vis.start());
   gui.add(vis, 'qWordBrightness').onChange(() => vis.start());
   gui.add(vis, 'circleBrightness').onChange(() => vis.start());
+  gui.add(vis, 'rainBrightness').onChange(() => vis.start());
   gui.addColor(vis, 'axisColor').onChange(() => vis.start());
   gui.addColor(vis, 'bgColor').onChange(() => vis.start());
   document.getElementById('container').hidden = true;
@@ -130,22 +132,31 @@ async function projectWordsVis(word: string, id: number) {
 
   for (let i = 0; i < knn.length; i++) {
     const neighbor = knn[i];
-
-    // Each neighbor has a slightly different color (within a same color range.)
-    // The colors are ranked by similarity to the query word.
-    // This color will be a hue (for an hsl color.) So, the id is multiplied by
-    // 36 to put it in range of 0-360 (the range for a hue.) Then, we add a bit
-    // of color variation up through + 70 of the hue.
-    const colorId = Math.floor(id * 36 + i / knn.length * 30) % 360
-
     const sims: number[] = [];
     for (const axes of visAxes) {
       let sim = await emb.project(neighbor, axes[0], axes[1]);
       sim = stretchValueVis(sim);
       sims.push(sim);
     }
+
+    // Each neighbor has a slightly different color (within a same color range.)
+    // The colors are ranked by how polarized they are overall.
+    // This color will be a hue (for an hsl color.) So, the id is multiplied by
+    // 36 to put it in range of 0-360 (the range for a hue.)
+    const averageSim = averageAbs(sims);
+    const colorId = Math.floor(id * 36 + averageSim * 100) % 360
+
     vis.addWord(neighbor, sims, neighbor === word, colorId, i);
   }
+}
+
+/** Average the absolute values of the array. */
+function averageAbs(sims: number[]): number {
+  let sum = 0;
+  sims.forEach((sim: number) => {
+    sum += Math.abs(sim);
+  });
+  return sum / sims.length;
 }
 
 /** Show results, either with the 3js UI or the standard UI. */
