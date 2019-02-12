@@ -74,13 +74,15 @@ export class Visualization {
       new THREE.WebGLRenderer({antialias: true, alpha: true});
   animating = false;
   camera = new THREE.OrthographicCamera(LEFT, RIGHT, TOP, BOTTOM, 2, 2000);
+  trueFontSize = 100;
+  desiredFontSize = 10;
 
   // Controlable params for dat.gui
   numRaindrops: number = NUM_RAINDROPS;
   rainSpeed: number = 1;
   wordSpeed: number = .2;
-  axisFontSize: number = 1;
-  wordFontSize: number = 1;
+  axisSize: number = 1;
+  wordSize: number = 1;
   axisColor = AXIS_COLOR;
   bgColor = BG_COLOR;
   wordBrightness = .75;
@@ -197,7 +199,7 @@ export class Visualization {
   private makeWord(
       word: string, similarities: number[], isQueryWord: boolean, id: number,
       idxFromQuery: number) {
-    const circleRad = 2 * this.wordFontSize;
+    const circleRad = 2 * this.wordSize;
 
     // The color scheme is as follows: circle, word, and trail all have the same
     // hue. The circle and word are a lighter version (except the query word),
@@ -212,6 +214,7 @@ export class Visualization {
     word = word.replace('_', ' ');
     const wordDiv = this.parent.append('div').classed('word', true);
     wordDiv.style('background-color', isQueryWord ? bgColor : 'none');
+    wordDiv.style('font-size', this.trueFontSize + 'px');
     wordDiv.classed('queryWord', isQueryWord);
     wordDiv.text(word);
     wordDiv.style('color', wordColor);
@@ -287,7 +290,7 @@ export class Visualization {
     const scaleHeight = this.axesToYPos(axisIdx);
 
     axisDiv.style('top', (TOP - scaleHeight) * 5);
-    axisDiv.style('font-size', 70 * this.axisFontSize);
+    axisDiv.style('font-size', 70 * this.axisSize);
     this.axesWidths.push(WIDTH * 3 / 4);
 
     // Add top bar.
@@ -372,19 +375,16 @@ export class Visualization {
 
       let x = (posVel.x + RIGHT) * 5 - wordObj.width / 2;
       let y = (TOP - posVel.y) * 5;
+      const fontScale = this.trueFontSize / this.desiredFontSize;
 
       if (!isQueryWord) {
         div.style('opacity', scale / scaleFactor + addFactor);
-        // 50 for the offset from the larger font size (100px)
-        // 10/2 for the offset from the text height.
-        // I know this is super sloppy... TODO: when we don't think major
-        // changes will happen again, clean this up.
-        y -= (50 + 10 / 2 * scale);
+        y -= (this.trueFontSize + fontScale * scale) / 2;
       } else {
         y -= 260;
       }
 
-      this.transform(div, x, y, scale / 10);
+      this.transform(div, x, y, scale / fontScale);
 
       wordObj.pos.x = posVel.x;
       wordObj.pos.y = posVel.y;
@@ -394,8 +394,7 @@ export class Visualization {
       // Update the blur trail's poisition and scale.
       const blur = this.blurs[i];
       const yPos = isQueryWord ? queryWordScale * 4 : 1;
-      blur.position.set(
-          posVel.x, posVel.y + this.wordFontSize * yPos, posVel.z);
+      blur.position.set(posVel.x, posVel.y + this.wordSize * yPos, posVel.z);
       blur.scale.x = isQueryWord ? queryWordScale : 1;
       blur.scale.y = isQueryWord ? queryWordScale : 1;
 
@@ -414,7 +413,6 @@ export class Visualization {
   }
 
   /** Remove the word and other shapes associate with it. */
-  // TODO: delete divs properly.
   private deleteWord(wordIdx: number) {
     this.words[wordIdx].div.node().remove();
     this.words.splice(wordIdx, 1);

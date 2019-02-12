@@ -92,8 +92,8 @@ if (USE_3JS) {
   gui.add(vis, 'numRaindrops').onChange(() => vis.start());
   gui.add(vis, 'rainSpeed').onChange(() => vis.start());
   gui.add(vis, 'wordSpeed').onChange(() => vis.start());
-  gui.add(vis, 'axisFontSize').onChange(() => vis.start());
-  gui.add(vis, 'wordFontSize').onChange(() => vis.start());
+  gui.add(vis, 'axisSize').onChange(() => vis.start());
+  gui.add(vis, 'wordSize').onChange(() => vis.start());
   gui.add(vis, 'wordBrightness').onChange(() => vis.start());
   gui.add(vis, 'qWordBrightness').onChange(() => vis.start());
   gui.add(vis, 'circleBrightness').onChange(() => vis.start());
@@ -160,7 +160,7 @@ async function projectWordsVis(word: string, id: number) {
 /** Average the absolute values of the array. */
 function averageAbs(sims: number[]): number {
   let sum = 0;
-  sims.forEach((sim: number) => {
+  sims.forEach(sim => {
     sum += Math.abs(sim);
   });
   return sum / sims.length;

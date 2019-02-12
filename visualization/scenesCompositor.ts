@@ -90,7 +90,8 @@ export class Pass {
     const clear = true;
     renderer.render(this.scene, this.camera, this.renderTarget, clear);
     if (this.renderToScreen) {
-      renderer.render(this.scene, this.camera, null, clear);
+      const renderTarget = null;
+      renderer.render(this.scene, this.camera, renderTarget, clear);
     }
   }
   getRTTexture() {
