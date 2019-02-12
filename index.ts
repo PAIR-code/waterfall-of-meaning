@@ -19,7 +19,6 @@ import * as dat from 'dat.gui';
 import Dexie from 'dexie';
 
 import * as utils from './visualization/utils';
-// import {Visualization} from './visualization/visualization'
 import {Visualization} from './visualization/visualization'
 import {WordEmbedding} from './word_embedding';
 
