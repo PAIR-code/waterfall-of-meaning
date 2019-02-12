@@ -178,6 +178,10 @@ async function setup() {
   startWaiting();
 }
 
+/**
+ * Wait and see if anyone inputs a word. If not, auto input one from the
+ * predefined list.
+ */
 async function startWaiting() {
   const lastInput = INPUT_ID;
   await utils.sleep(AUTO_INPUT_TIMEOUT);
