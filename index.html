@@ -17,6 +17,13 @@ limitations under the License.
   body {
     font: 11pt roboto;
     margin-left: 100px;
+    position: relative;
+    font-family: Helvetica Neue, sans-serif;
+    font-weight: lighter;
+  }
+
+  body canvas {
+    position: absolute;
   }
   #words-container {
     width: 1000px;
@@ -48,6 +55,55 @@ limitations under the License.
     display: inline-block;
     vertical-align: top;
   }
+
+  /* Visualization */
+  #vis-holder {
+    position: absolute;
+    z-index: 1;
+  }
+  #vis-bg {
+    position: absolute;
+  }
+  .word {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    perspective: 1000;
+    -webkit-perspective: 1000;
+    top: 0px;
+    left: 0px;
+    width: 0px;
+    display:flex;
+    align-items: center;
+    justify-content: center;
+    color: orange;
+    position: absolute;
+    -webkit-transform: translate3d(0,0,0);
+    transform: translate3d(0, 0, 0);
+    -ms-transform-origin: 50% 50%; /* IE 9 */
+    -webkit-transform-origin: 50% 50%; /* Safari 3-8 */
+    will-change: transform;
+    transform-origin: 50% 50%; /* IE 9 */
+  }
+  .queryWord {
+    border-radius: 50%;
+    width: 400px;
+    height: 400px;
+  }
+  .axis-row{
+    font-size: 50px;
+    width: 75%;
+    margin-left: 12.5%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: absolute;
+  }
+  .bar{
+    width: 60%;
+    margin-left: 20%;
+    height: .2%;
+    position: absolute;
+  }
 </style>
 
 <div id="body" style="display: none">
@@ -65,6 +121,8 @@ limitations under the License.
     <div id="words-container"></div>
     <input type="text" id="direction-input2" placeholder="she">
   </div>
+  <div id='vis-bg'></div>
+  <div id='vis-holder'></div>
 </div>
 <div id="loading">
   Loading embeddings...
