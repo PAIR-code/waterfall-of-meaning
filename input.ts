@@ -26,6 +26,18 @@ const EMBEDDINGS_VALUES_URL = EMBEDDINGS_DIR + 'embedding-values.bin';
 const BARBICAN_DATABASE_NAME = 'barbican-database';
 const bc = new BroadcastChannel('word_flow_channel');
 
+/** Id of this input. Used when auto-inputing. */
+let inputId = 0;
+/** Default words to input when no one is interacting. */
+let defaultInputsId = 0;
+const defaultInputs = [
+  'doctor', 'dragon',     'fear',     'feline',   'teach',  'nurse', 'laugh',
+  'beer',   'squid',      'soda',     'witch',    'soccer', 'shark', 'facebook',
+  'clever', 'politician', 'dance',    'football', 'meat',   'grass', 'red',
+  'skull',  'labor',      'fabulous', 'pickle',   'fish',   'donut'
+];
+const AUTO_INPUT_TIMEOUT_MS = 15000;
+
 const button =
     document.getElementById('button').getElementsByClassName('mdl-button')[0];
 const textInput = <HTMLInputElement>document.getElementById('wordInput');
@@ -64,6 +76,7 @@ function uniqueColorFromId(id: number) {
  * @param word word to send to the other front end
  */
 async function sendWord(word: string) {
+  inputId++;
   word = word.replace(' ', '_');
 
   const message = {'word': word, 'colorId': uniqueColorFromId(searchId)};
@@ -162,6 +175,21 @@ async function setup() {
     words[i] = words[i].replace('_', ' ');
   }
   prefixTrie = trie(words);
+  startWaiting();
+}
+
+/**
+ * Wait and see if anyone inputs a word. If not, auto input one from the
+ * predefined list.
+ */
+async function startWaiting() {
+  const lastInput = inputId;
+  await utils.sleep(AUTO_INPUT_TIMEOUT_MS);
+  if (lastInput === inputId) {
+    defaultInputsId++;
+    sendWord(defaultInputs[defaultInputsId % defaultInputs.length]);
+  }
+  startWaiting();
 }
 
 setup();
