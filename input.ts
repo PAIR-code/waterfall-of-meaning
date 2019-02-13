@@ -27,7 +27,7 @@ const BARBICAN_DATABASE_NAME = 'barbican-database';
 const bc = new BroadcastChannel('word_flow_channel');
 
 /** Id of this input. Used when auto-inputing. */
-let INPUT_ID = 0;
+let inputId = 0;
 /** Default words to input when no one is interacting. */
 let defaultInputsId = 0;
 const defaultInputs = [
@@ -36,7 +36,7 @@ const defaultInputs = [
   'clever', 'politician', 'dance',    'football', 'meat',   'grass', 'red',
   'skull',  'labor',      'fabulous', 'pickle',   'fish',   'donut'
 ];
-const AUTO_INPUT_TIMEOUT = 15000;
+const AUTO_INPUT_TIMEOUT_MS = 15000;
 
 const button =
     document.getElementById('button').getElementsByClassName('mdl-button')[0];
@@ -76,7 +76,7 @@ function uniqueColorFromId(id: number) {
  * @param word word to send to the other front end
  */
 async function sendWord(word: string) {
-  INPUT_ID++;
+  inputId++;
   word = word.replace(' ', '_');
 
   const message = {'word': word, 'colorId': uniqueColorFromId(searchId)};
@@ -183,9 +183,9 @@ async function setup() {
  * predefined list.
  */
 async function startWaiting() {
-  const lastInput = INPUT_ID;
-  await utils.sleep(AUTO_INPUT_TIMEOUT);
-  if (lastInput === INPUT_ID) {
+  const lastInput = inputId;
+  await utils.sleep(AUTO_INPUT_TIMEOUT_MS);
+  if (lastInput === inputId) {
     defaultInputsId++;
     sendWord(defaultInputs[defaultInputsId % defaultInputs.length]);
   }
