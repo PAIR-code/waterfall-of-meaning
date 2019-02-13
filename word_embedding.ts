@@ -119,6 +119,10 @@ export class WordEmbedding {
     });
   }
 
+  /**
+   * Project all words along the axes to precompute the biases.
+   * @param axes axes along which to project all words.
+   */
   computeProjections(axes: string[][]): tf.Tensor {
     return tf.tidy(() => {
       // Collect the directions for each axis.

@@ -367,7 +367,8 @@ export class Visualization {
       const targetLoc = (axesWidth / WIDTH) * bias;
 
       // Spring force toward the target location, (in %.)
-      const pull = (targetLoc - pos.x / (WIDTH / 2)) / 2;
+      const springForceK = 2;
+      const pull = (targetLoc - pos.x / (WIDTH / 2)) / springForceK;
 
       // Caluclate and set the new position.
       const posVel =
@@ -471,9 +472,11 @@ export class Visualization {
     // Bounce is less high for words, cause it looks pretty annoying.
     let vBounce;
     if (!isRain) {
-      vBounce = 1 / 100 + Math.random() / 10;
+      const bounceDampener = 10;
+      vBounce = 1 / 100 + Math.random() / bounceDampener;
     } else {
-      vBounce = -v * Math.random() / 3;
+      const bounceDampener = 3;
+      vBounce = -v * Math.random() / bounceDampener;
     }
 
     // Figure out if we're near a word axis, and bounce if so.
