@@ -52,6 +52,7 @@ const BG_COLOR = {
 };
 
 interface word {
+  string: string;
   div: Selection;
   pulls: number[];
   pos: THREE.Vector3;
@@ -80,7 +81,7 @@ export class Visualization {
   // Controlable params for dat.gui
   numRaindrops: number = NUM_RAINDROPS;
   rainSpeed: number = 1;
-  wordSpeed: number = .2;
+  wordSpeed: number = 1;
   axisSize: number = 1;
   wordSize: number = 1;
   axisColor = AXIS_COLOR;
@@ -171,8 +172,7 @@ export class Visualization {
       word: string, similarities: number[], isQueryWord: boolean,
       colorId: number, idxFromQuery: number) {
     word = word.replace('_', ' ');
-    this.words.push(
-        this.makeWord(word, similarities, isQueryWord, colorId, idxFromQuery));
+    this.words.push(this.makeWord(word, similarities, isQueryWord, colorId));
   }
 
   /** Animation loop. Updates positions and rerenders. */
@@ -197,8 +197,7 @@ export class Visualization {
    * @param isQueryWord Was this the original query word that the user typed in?
    */
   private makeWord(
-      word: string, similarities: number[], isQueryWord: boolean, id: number,
-      idxFromQuery: number) {
+      word: string, similarities: number[], isQueryWord: boolean, id: number) {
     const circleRad = 2 * this.wordSize;
 
     // The color scheme is as follows: circle, word, and trail all have the same
@@ -232,8 +231,9 @@ export class Visualization {
     const wordWidth = isQueryWord ?
         wordDiv.node().getBoundingClientRect().width :
         5 * word.length;
-    const startYPos = isQueryWord ? TOP : TOP + idxFromQuery * 20 + WIDTH / 5;
+    const startYPos = isQueryWord ? TOP : TOP + WIDTH / 10;
     const wordObj: word = {
+      string: word,
       div: wordDiv,
       pulls: similarities,
       pos: new THREE.Vector3(this.centerXPos(), startYPos, 0),
@@ -367,7 +367,7 @@ export class Visualization {
       const targetLoc = (axesWidth / WIDTH) * bias;
 
       // Spring force toward the target location, (in %.)
-      const pull = (targetLoc - pos.x / (WIDTH / 2)) / 5;
+      const pull = (targetLoc - pos.x / (WIDTH / 2)) / 2;
 
       // Caluclate and set the new position.
       const posVel =
@@ -379,7 +379,8 @@ export class Visualization {
 
       if (!isQueryWord) {
         div.style('opacity', scale / scaleFactor + addFactor);
-        y -= (this.trueFontSize + fontScale * scale) / 2;
+        const numLines = wordObj.string.split(' ').length;
+        y -= (this.trueFontSize + fontScale * scale) / 2 * numLines;
       } else {
         y -= 260;
       }
@@ -470,7 +471,7 @@ export class Visualization {
     // Bounce is less high for words, cause it looks pretty annoying.
     let vBounce;
     if (!isRain) {
-      vBounce = 1 / 100 + Math.random() / 20;
+      vBounce = 1 / 100 + Math.random() / 10;
     } else {
       vBounce = -v * Math.random() / 3;
     }

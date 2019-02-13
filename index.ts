@@ -55,12 +55,13 @@ if ('3js' in params) {
 }
 let LEFT_AXIS_WORD = 'he';
 let RIGHT_AXIS_WORD = 'she';
-let NEIGHBOR_COUNT = 100;
+let NEIGHBOR_COUNT = 50;
+document.getElementById('num-neighbors').placeholder = NEIGHBOR_COUNT;
 let emb: WordEmbedding;
 let vis: Visualization;
 
 const visAxes = [
-  ['good', 'bad'],
+  // ['good', 'bad'],
   ['expensive', 'cheap'],
   ['weak', 'strong'],
   ['he', 'she'],
@@ -70,6 +71,9 @@ const visAxes = [
  * on to that axis.)
  */
 let axisNorms: Float32Array;
+
+/** Precalculated projections of the words on each axis. */
+let projections: {[key: string]: number[]};
 
 
 const loadingElement = document.getElementById('loading');
@@ -130,14 +134,14 @@ directionInputElement2.addEventListener('change', () => {
 
 async function projectWordsVis(word: string, id: number) {
   // Similarities for each axis.
-  const knn = await emb.nearest(word, NEIGHBOR_COUNT);
+  const knn = await emb.nearest(word, NEIGHBOR_COUNT * 2);
 
+  const divisiveNNs: any[] = [];
   for (let i = 0; i < knn.length; i++) {
     const neighbor = knn[i];
     const sims: number[] = [];
     for (let j = 0; j < visAxes.length; j++) {
-      const axes = visAxes[j];
-      let sim = await emb.project(neighbor, axes[0], axes[1]);
+      let sim = projections[neighbor][j];
 
       // Subtract the norm of the axis (that is, the average of all other vocab
       // words projected on to that axis.)
@@ -146,15 +150,41 @@ async function projectWordsVis(word: string, id: number) {
       sims.push(sim);
     }
 
-    // Each neighbor has a slightly different color (within a same color range.)
-    // The colors are ranked by how polarized they are overall.
-    // This color will be a hue (for an hsl color.) So, the id is multiplied by
-    // 36 to put it in range of 0-360 (the range for a hue.)
-    const averageSim = averageAbs(sims);
-    const colorId = Math.floor(id * 36 + averageSim * 100) % 360
+    const avgSim = averageAbs(sims);
+    divisiveNNs.push({neighbor, sims, avgSim});
 
-    vis.addWord(neighbor, sims, neighbor === word, colorId, i);
+    // If this is the query word, go ahead and add it.
+    if (neighbor === word) {
+      vis.addWord(word, sims, true, makeColorId(id, 0), i);
+    }
   }
+
+  // Take only the top n most divisive.
+  // Sort by the average similarity value stored above.
+  divisiveNNs.sort(
+      (a, b) => (a.avgSim < b.avgSim) ? 1 : ((b.avgSim < a.avgSim) ? -1 : 0));
+
+  for (let i = 0; i < NEIGHBOR_COUNT; i++) {
+    const nn = divisiveNNs[i];
+
+    // We've already added the query word above, so don't add it again.
+    const isQueryWord = nn.neighbor === word;
+    if (!isQueryWord) {
+      const colorId = makeColorId(id, nn.avgSim);
+
+      // Sleep between releasing words so that they are spread out visually.
+      await utils.sleep(500);
+      vis.addWord(nn.neighbor, nn.sims, isQueryWord, colorId, i);
+    }
+  }
+}
+
+// Each neighbor has a slightly different color (within a same color range.)
+// The colors are ranked by how polarized they are overall (colorTweak).
+// This color will be a hue (for an hsl color.) So, the color id (generalColor)
+// is multiplied by 36 to put it in range of 0-360 (the range for a hue.)
+function makeColorId(generalColor: number, colorTweak: number) {
+  return Math.floor(generalColor * 36 + colorTweak * 100) % 360;
 }
 
 /** Average the absolute values of the array. */
@@ -245,6 +275,26 @@ function stretchValueVis(value: number): number {
   return value -= .1;  // TODO get norms for the entire dataset and subtract.
 }
 
+/**
+ * Precalculate projections of all words onto the axes.
+ * @param words dictionary of words to save
+ */
+async function precalculatProjections(words: string[]) {
+  const dists: {[key: string]: number[]} = {};
+  const allProjections =
+      await emb.computeProjections(visAxes).array() as number[][];
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    dists[word] = [];
+    for (let j = 0; j < visAxes.length; j++) {
+      const projectedVal = allProjections[j][i];
+      dists[word].push(projectedVal);
+    }
+  }
+  return dists;
+}
+
+
 async function setup() {
   const data = await utils.loadDatabase(
       EMBEDDINGS_DIR, EMBEDDINGS_WORDS_URL, EMBEDDINGS_VALUES_URL);
@@ -273,6 +323,9 @@ async function setup() {
   // Calculate the axis norms.
   axisNorms =
       await emb.computeAverageWordSimilarity(visAxes).data() as Float32Array;
+
+  // Calculate dictionary of every word's similarity to the axes.
+  projections = await precalculatProjections(words);
 }
 
 setup();
