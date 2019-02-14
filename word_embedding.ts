@@ -118,4 +118,29 @@ export class WordEmbedding {
       return biases.mean(1);
     });
   }
+
+  /**
+   * Project all words along the axes to precompute the biases.
+   * @param axes axes along which to project all words.
+   */
+  computeProjections(axes: string[][]): tf.Tensor {
+    return tf.tidy(() => {
+      // Collect the directions for each axis.
+      const directions = [];
+      for (let i = 0; i < axes.length; i++) {
+        const axis = axes[i];
+        const word1 = axis[0];
+        const word2 = axis[1];
+        directions.push(this.computeDirection(word1, word2));
+      }
+
+      // Get their averages.
+      const directionsTensor = tf.stack(directions);
+      const transposeA = false;
+      const transposeB = true;
+      const biases = tf.matMul(
+          directionsTensor, this.embeddingTensor, transposeA, transposeB);
+      return biases;
+    });
+  }
 }
