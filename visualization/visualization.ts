@@ -305,7 +305,7 @@ export class Visualization {
   /** Update the position of the rain drops */
   private updateRain() {
     const verts = this.rainGeometry.attributes.position.array;
-    for (let i = 0; i < NUM_RAINDROPS - 1; i++) {
+    for (let i = 0; i < NUM_RAINDROPS; i++) {
       const j = i * 3;
       const vert = new Vector3(verts[j], verts[j + 1], verts[j + 2]);
       const pull = this.rainGeometry.userData.pulls[i];
