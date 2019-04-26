@@ -21,8 +21,8 @@ yarn
 yarn build
 
 echo "Deploying..."
-gsutil mkdir -p gs://barbican-waterfall-of-meaning/demo
-gsutil -m cp dist/* gs://barbican-waterfall-of-meaning/demo
+gsutil mkdir -p gs://waterfall-of-meaning/demo
+gsutil -m cp dist/* gs://waterfall-of-meaning/demo
 
-gsutil -m setmeta -h "Cache-Control:private" "gs://barbican-waterfall-of-meaning/**.html"
-gsutil -m setmeta -h "Cache-Control:private" "gs://barbican-waterfall-of-meaning/**.js"
+gsutil -m setmeta -h "Cache-Control:private" "gs://waterfall-of-meaning/**.html"
+gsutil -m setmeta -h "Cache-Control:private" "gs://waterfall-of-meaning/**.js"
