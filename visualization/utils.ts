@@ -16,8 +16,9 @@
  */
 
 /** Utils for visualization.ts */
-
 import Dexie from 'dexie';
+import * as BadWords from '../badwords'
+var $ = require('jquery');
 import * as THREE from 'three';
 
 /** Is the y value near the top value? (Within 10.) */
@@ -76,8 +77,8 @@ export async function loadDatabase(
     const embeddingsRequest = await fetch(embValUrl);
     embeddings = new Float32Array(await embeddingsRequest.arrayBuffer());
 
-    const blob = new Blob([embeddings], {type: 'octet/stream'});
 
+    const blob = new Blob([embeddings], {type: 'octet/stream'});
     await (db as any).embeddings.put({words, values: blob});
   } else {
     console.log('Loading embeddings from IndexedDB cache...');
@@ -92,5 +93,88 @@ export async function loadDatabase(
     });
     await db.close();
   }
+
+  const returns = filterBadWords(words, embeddings);
+  words = returns.words;
+  embeddings = returns.embeddings;
+
   return {words, embeddings};
+}
+
+export function shuffle(a: any[]) {
+  let j, x, i;
+  for (i = a.length - 1; i > 0; i--) {
+    j = Math.floor(Math.random() * (i + 1));
+    x = a[i];
+    a[i] = a[j];
+    a[j] = x;
+  }
+  return a;
+}
+
+export function filterBadWords(words: string[], embeddings: Float32Array) {
+  const embeddingsArr = Array.from(embeddings);
+  const dim = embeddings.length / words.length;
+
+  for (let i = words.length - 1; i >= 0; i--) {
+    const word = words[i];
+    if (BadWords.BadWords.indexOf(word) > -1 || word.includes('sex')) {
+      words.splice(i, 1);
+      embeddingsArr.splice(i * dim, dim);
+    }
+  }
+  embeddings = new Float32Array(embeddingsArr);
+  return {words, embeddings};
+}
+
+// Taken from
+// https://stackoverflow.com/questions/118241/calculate-text-width-with-javascript
+export function stringWidth(str: string, scale: number) {
+  var f = scale + 'px Roboto Condensed',
+      o = $('<div></div>')
+              .text(str)
+              .css({
+                'position': 'absolute',
+                'float': 'left',
+                'white-space': 'nowrap',
+                'visibility': 'hidden',
+                'font': f
+              })
+              .appendTo($('body')),
+      w = o.width();
+  o.remove();
+  return w;
+}
+
+
+export function clamp(val: number, min: number, max: number) {
+  return Math.min(Math.max(val, min), max);
+}
+
+
+
+/** Average the absolute values of the array. */
+export function averageAbs(sims: number[]): number {
+  let sum = 0;
+  sims.forEach(sim => {
+    sum += Math.abs(sim);
+  });
+  return sum / sims.length;
+}
+
+
+/** Parse the url into params. */
+export function parseURL(): {[id: string]: string;} {
+  const url = window.location.href;
+  let paramsArr = url.split('#');
+  if (paramsArr.length > 1) {
+    paramsArr = paramsArr[1].split('&');
+    const params: {[id: string]: string;} = {};
+    for (let i = 0; i < paramsArr.length; i++) {
+      const keyval = paramsArr[i].split('=');
+      params[keyval[0]] = keyval[1];
+    }
+    return params;
+  }
+  return {};
 }

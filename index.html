@@ -12,43 +12,35 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================-->
-
 <style>
   body {
-    font: 11pt roboto;
+    font-size: 11pt;
+    font-family: 'futura', 'Trebuchet MS', 'Arial', 'sans-serif';
+    letter-spacing: 0.7px;
     margin-left: 100px;
     position: relative;
-    font-family: Helvetica Neue, sans-serif;
-    font-weight: lighter;
+    background-color: black;
   }
 
   body canvas {
     position: absolute;
   }
-  #words-container {
-    width: 1000px;
-  }
-  #direction-input1, #direction-input2, #words-container {
-    display: inline-block;
-    vertical-align: top;
-    background: #fafafa;
-    border-left: solid 1px #DADCE0;
-    border-right: solid 1px #DADCE0;
-  }
-  #container {
-    margin-top: 100px;
-  }
-  #direction-input1, #direction-input2 {
+
+  #direction-input1,
+  #direction-input2 {
     font-size: 20pt;
   }
+
   #word-input {
     font-size: 15pt;
     width: 300px;
   }
+
   .word-value {
     height: 35px;
     line-height: 35px;
   }
+
   #num-neighbors {
     width: 40px;
     font-size: 15pt;
@@ -59,11 +51,13 @@ limitations under the License.
   /* Visualization */
   #vis-holder {
     position: absolute;
-    z-index: 1;
+    /* z-index: 1; */
   }
+
   #vis-bg {
     position: absolute;
   }
+
   .word {
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
@@ -72,25 +66,36 @@ limitations under the License.
     top: 0px;
     left: 0px;
     width: 0px;
-    display:flex;
+    display: flex;
     align-items: center;
     justify-content: center;
     color: orange;
     position: absolute;
-    -webkit-transform: translate3d(0,0,0);
+    -webkit-transform: translate3d(0, 0, 0);
     transform: translate3d(0, 0, 0);
-    -ms-transform-origin: 50% 50%; /* IE 9 */
-    -webkit-transform-origin: 50% 50%; /* Safari 3-8 */
+    -ms-transform-origin: 50% 50%;
+    /* IE 9 */
+    -webkit-transform-origin: 50% 50%;
+    /* Safari 3-8 */
     will-change: transform;
-    transform-origin: 50% 50%; /* IE 9 */
+    transform-origin: 50% 50%;
+    /* IE 9 */
     text-align: center;
   }
+
+  .tick {
+    height: .5vw;
+    width: 2px;
+    margin-top: -.5vw;
+  }
+
   .queryWord {
     border-radius: 50%;
     width: 400px;
     height: 400px;
   }
-  .axis-row{
+
+  .axis-row {
     font-size: 50px;
     width: 75%;
     margin-left: 12.5%;
@@ -99,28 +104,22 @@ limitations under the License.
     justify-content: space-between;
     position: absolute;
   }
-  .bar{
-    width: 60%;
-    margin-left: 20%;
-    height: .2%;
+
+  .bar {
+    width: 75%;
+    margin-left: 12.7%;
+    height: 2px;
     position: absolute;
+    display: flex;
+    justify-content: space-between;
   }
 </style>
+<link href="https://fonts.googleapis.com/css?family=Roboto|Roboto+Condensed:300" rel="stylesheet">
 
-<div id="body" style="display: none">
+<div id="body">
 
   <div id='input_bar'>
-    <div>
-      <input type="text" id="word-input">
-      <input type="text" id="num-neighbors">
-    </div>
-    <div id="error">Word not found...</div>
-  </div>
-
-  <div id="container">
-    <input type="text" id="direction-input1" placeholder="he">
-    <div id="words-container"></div>
-    <input type="text" id="direction-input2" placeholder="she">
+    <input type="text" id="word-input">
   </div>
   <div id='vis-bg'></div>
   <div id='vis-holder'></div>

@@ -22,9 +22,7 @@
 import * as d3 from 'd3';
 import * as Stats from 'stats-js';
 import * as THREE from 'three';
-import {Vector3} from 'three';
 
-import {ScenesCompositor} from './scenesCompositor'
 import * as utils from './utils'
 
 // Width and height of DOM element.
@@ -38,59 +36,36 @@ const LEFT = -TOP / 4;
 const RIGHT = TOP / 4;
 const WIDTH = RIGHT - LEFT;
 
-// For the physics!
-const NUM_RAINDROPS = 500;
-const AXIS_COLOR = {
-  h: 217,
-  s: .60,
-  v: .17
-};
-const BG_COLOR = {
-  h: 217,
-  s: .48,
-  v: .30
-};
+// Maximum number of words to be on the screen at one time.
+const MAX_WORDS = 1300;
 
 interface word {
   string: string;
-  div: Selection;
   pulls: number[];
+  opacity: number;
   pos: THREE.Vector3;
+  currentTargetPos: THREE.Vector3;
   vel: number;
   isQueryWord: boolean;
+  isBackgroundWord: boolean;
   width: number;
+  scale: number;
+  numFrames: number;
+  distToAxis: number;
+  currentAxis: number;
 }
 
 export class Visualization {
   rainGeometry: any;
-  compositor: ScenesCompositor;
   parent: any;
   words: word[] = [];
-  blurs: any[];
-  rainScene: THREE.Scene;
   yPosToAxesArr: number[];
   axesToYPosArr: number[];
   axesWidths: number[];
-  renderer: THREE.WebGLRenderer =
-      new THREE.WebGLRenderer({antialias: true, alpha: true});
   animating = false;
   camera = new THREE.OrthographicCamera(LEFT, RIGHT, TOP, BOTTOM, 2, 2000);
   trueFontSize = 100;
-  desiredFontSize = 10;
-
-  // Controlable params for dat.gui
-  numRaindrops: number = NUM_RAINDROPS;
-  rainSpeed: number = 1;
-  wordSpeed: number = 1;
-  axisSize: number = 1;
-  wordSize: number = 1;
-  axisColor = AXIS_COLOR;
-  bgColor = BG_COLOR;
-  wordBrightness = .75;
-  qWordBrightness = .75;
-  circleBrightness = .3;
-  rainBrightness = .25;
-
+  wordSpeed: number = .2;
   stats: any;
 
   constructor(private axes: string[][]) {
@@ -103,7 +78,6 @@ export class Visualization {
     }
     this.addStats();
     this.words = [];
-    this.blurs = [];
     this.yPosToAxesArr = [];
     this.axesToYPosArr = [];
     this.axesWidths = [];
@@ -120,33 +94,22 @@ export class Visualization {
     // Save some axis/ypos offline to speed up frame rate.
     this.precomputeAxesYPos();
 
-    // Make scene that contains the rain.
-    this.rainScene = new THREE.Scene();
-    this.makeRain();
-
     // Make axis words.
     this.axes.forEach(axis => {
       this.makeAxisWord(axis);
     });
-
-    // Add camera and renderer.
-    this.camera.position.z = 1000;
-    this.renderer.domElement.style.opacity = (this.rainBrightness).toString();
-    this.compositor = new ScenesCompositor(
-        this.rainScene, this.camera, ELT_WIDTH, ELT_HEIGHT, this.renderer);
   }
 
   private setUpParent() {
-    this.parent = d3.select('#vis-holder');
-    this.parent.node().innerHTML = '';
+    const holder = d3.select('#vis-holder');
+    this.parent = holder.append('canvas').node();
 
-    this.parent.style('width', ELT_WIDTH + 'px');
-    this.parent.style('height', ELT_HEIGHT + 'px');
+    const ctx = this.parent.getContext('2d');
+    ctx.clearRect(0, 0, this.parent.width, this.parent.height);
+    this.parent.width = ELT_WIDTH;
+    this.parent.height = ELT_HEIGHT;
 
     const bg = d3.select('#vis-bg');
-    bg.style(
-        'background-color',
-        utils.toHSL(this.bgColor.h, this.bgColor.s, this.bgColor.v));
     bg.style('width', ELT_WIDTH + 'px');
     bg.style('height', ELT_HEIGHT + 'px');
   }
@@ -170,9 +133,60 @@ export class Visualization {
    */
   addWord(
       word: string, similarities: number[], isQueryWord: boolean,
-      colorId: number, idxFromQuery: number) {
-    word = word.replace('_', ' ');
-    this.words.push(this.makeWord(word, similarities, isQueryWord, colorId));
+      isBackgroundWord: boolean) {
+    // Rate limit number of words added.
+    if (this.words.length > MAX_WORDS && !isQueryWord) {
+      return;
+    }
+
+    word = word.replace(/_/g, ' ').toLowerCase();
+
+    // Make the scale a function of the bias values.
+    const absSims: number[] = [];
+    similarities.forEach((sim: number) => absSims.push(Math.abs(sim)));
+    let scale = Math.max(...absSims);
+    if (isQueryWord) {
+      scale = 1;
+    }
+
+    // Give the scale an exponential dropoff.
+    const power = 3;
+    const scaleFactor = 5;
+    const addFactor = .1;
+    scale = Math.pow(scale + addFactor, power) * scaleFactor;
+    scale = Math.abs(scale) / 10;
+    if (!isBackgroundWord) {
+      scale = Math.min(1, scale);
+    } else {
+      scale /= 2;
+    }
+    const wordWidth =
+        utils.stringWidth(word, Math.ceil(this.trueFontSize * scale));
+
+    // Start the words at the top.
+    const startYPos = isBackgroundWord ? this.randomYPos() : TOP + 10;
+
+    // If the word is a background word, make it lighter but with some
+    // variation.
+    const backgroundOpacity = .15 + .1 * (Math.random() - .5);
+
+    // Finally, create the word object and add it to the scene.
+    const wordObj: word = {
+      string: word,
+      scale,
+      opacity: isBackgroundWord ? backgroundOpacity : 1,
+      pulls: similarities,
+      pos: new THREE.Vector3(this.randomXPos(), startYPos, 0),
+      currentTargetPos: new THREE.Vector3(this.randomXPos(), startYPos, 0),
+      vel: 0,
+      isQueryWord,
+      isBackgroundWord,
+      width: wordWidth,
+      numFrames: Infinity,
+      distToAxis: Infinity,
+      currentAxis: 0
+    };
+    this.words.push(wordObj);
   }
 
   /** Animation loop. Updates positions and rerenders. */
@@ -180,9 +194,11 @@ export class Visualization {
     this.stats.begin();
     this.animating = true;
     requestAnimationFrame(() => this.animate());
-    this.updateRain();
+
+    const ctx = this.parent.getContext('2d');
+    ctx.clearRect(0, 0, this.parent.width, this.parent.height);
+
     this.updateWords();
-    this.compositor.render();
     this.stats.end();
   }
 
@@ -190,86 +206,93 @@ export class Visualization {
   // Creating geometries                                                      //
   //////////////////////////////////////////////////////////////////////////////
 
-  /**
-   *  Make the word geometry and add it to the scene.
-   * @param word string of the word to add
-   * @param similarity polarization of the word along the bias axis
-   * @param isQueryWord Was this the original query word that the user typed in?
-   */
-  private makeWord(
-      word: string, similarities: number[], isQueryWord: boolean, id: number) {
-    const circleRad = 2 * this.wordSize;
+  private drawWord(word: word) {
+    word.numFrames++;
+    const ctx = this.parent.getContext('2d');
 
-    // The color scheme is as follows: circle, word, and trail all have the same
-    // hue. The circle and word are a lighter version (except the query word),
-    // the blur is a darker version.
-    const wordColor = utils.toHSL(
-        id, .50, isQueryWord ? this.qWordBrightness : this.wordBrightness);
-    const bgColor = utils.toHSL(id, 1., this.circleBrightness);
-    const blurColor =
-        new THREE.Color(utils.toHSL(id, 1., this.circleBrightness));
+    // Draw the word itself.
+    const lerpVal = utils.clamp(word.numFrames / 100, 0, 1)
+    const g = utils.lerp(lerpVal, 255, 160);
+    const b = utils.lerp(lerpVal, 255, 0);
 
-    // Make the word div.
-    word = word.replace('_', ' ');
-    const wordDiv = this.parent.append('div').classed('word', true);
-    wordDiv.style('background-color', isQueryWord ? bgColor : 'none');
-    wordDiv.style('font-size', this.trueFontSize + 'px');
-    wordDiv.classed('queryWord', isQueryWord);
-    wordDiv.text(word);
-    wordDiv.style('color', wordColor);
-
-    // Make the blur trail circle.
-    const blurGeometry = new THREE.CircleGeometry(
-        isQueryWord ? circleRad * 2 : circleRad / 2, 32);
-    const blurMaterial =
-        new THREE.MeshBasicMaterial({color: blurColor, transparent: false});
-    const blurMesh = new THREE.Mesh(blurGeometry, blurMaterial);
-    this.rainScene.add(blurMesh);
-    this.blurs.push(blurMesh);
-
-    // Word obect
-    const wordWidth = isQueryWord ?
-        wordDiv.node().getBoundingClientRect().width :
-        5 * word.length;
-    const startYPos = isQueryWord ? TOP : TOP + WIDTH / 10;
-    const wordObj: word = {
-      string: word,
-      div: wordDiv,
-      pulls: similarities,
-      pos: new THREE.Vector3(this.centerXPos(), startYPos, 0),
-      vel: 0,
-      isQueryWord,
-      width: wordWidth
-    };
-    return wordObj;
-  }
-
-  /** Create rain (which is a THREE.points) and add it to the rain scene. */
-  private makeRain() {
-    this.rainGeometry = new THREE.BufferGeometry();
-    const raindrops = [];
-    for (var i = 0; i < this.numRaindrops; i++) {
-      var x = this.randomXPos();
-      var y = this.randomRainYPos();
-      var z = 0;
-      raindrops.push(x);
-      raindrops.push(y);
-      raindrops.push(z);
+    if (word.isQueryWord) {
+      ctx.fillStyle = `rgb(255, 255, 255, 1)`;
+    } else if (!word.isBackgroundWord) {
+      ctx.fillStyle = `rgba(255, ${g}, ${b}, ${word.opacity})`;
+    } else {
+      ctx.fillStyle = `rgba(255, 255, 255, ${word.opacity})`;
     }
-    this.rainGeometry.addAttribute(
-        'position', new THREE.BufferAttribute(new Float32Array(raindrops), 3));
+    const fontSize = Math.ceil(this.trueFontSize * word.scale);
+    ctx.font = fontSize + 'px Roboto Condensed';
+    let x = (word.pos.x + RIGHT) * 5 - word.width / 2;
+    let y = (TOP - word.pos.y) * 5;
+    ctx.fillText(word.string, x, y);
 
-    // Store the pulls (random direction of the rain) and velocity.
-    this.rainGeometry.userData = {
-      pulls: Array.from(
-          {length: this.numRaindrops}, () => (Math.random() - 0.5) / 10),
-      vels: Array.from({length: this.numRaindrops}, () => 0)
+
+    // Add highlight spotlight.
+    if (word.isQueryWord) {
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(255, 255, 255, .2)`;
+      const rady = 70;
+      const radx = Math.max(word.width * .6, rady);
+      ctx.ellipse(
+          (word.pos.x + RIGHT) * 5, y - 20, radx, rady, 0, 0, 2 * Math.PI);
+      ctx.fill();
     }
 
-    const material =
-        new THREE.PointsMaterial({size: WIDTH / 20, map: utils.makeSprite()});
-    var particles = new THREE.Points(this.rainGeometry, material);
-    this.rainScene.add(particles);
+    if (!word.isBackgroundWord) {
+      if (word.currentAxis < 1 && word.distToAxis == 0) {
+        word.distToAxis = word.numFrames / 600;
+      }
+
+      if (word.currentAxis < this.axes.length && word.currentAxis > -1) {
+        // Add "x % whatever"
+        let bias = Math.round(word.pulls[word.currentAxis] * 50);
+        const axis = this.axes[word.currentAxis];
+        let label = '';
+        if (axis) {
+          label = bias > 0 ? axis[1] : axis[0];
+        }
+        bias = Math.abs(bias) + 50;
+        bias = Math.min(100, bias);
+        const biasText = `${bias} % ${label}`;
+        const distToAxis = Math.abs(word.distToAxis - 0.5);
+
+
+        let opacity = word.opacity * distToAxis * 2;
+        ctx.fillStyle = `rgba(255, 160, 0, ${opacity})`
+        ctx.font = Math.ceil(fontSize / 4) + 'px Roboto Condensed';
+
+        const xPosBias = x + word.width;
+        const yPosBias = y - fontSize * .6;
+        ctx.fillText(biasText, xPosBias, yPosBias);
+      }
+
+      // Underline on word
+      ctx.beginPath();
+      let opacity = (1 - word.distToAxis) * word.opacity * 2;
+      if (word.pos.y > TOP - 2) {
+        opacity = 0;
+      }
+
+      ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+      const yLow = y + 5;
+      ctx.lineWidth = word.isQueryWord ? 5 : 1;
+      ctx.moveTo(x, yLow);
+      ctx.lineTo(x + word.width * .9, yLow);
+      ctx.stroke();
+
+      // Add line to target.
+      ctx.beginPath();
+      x += word.width / 2;
+      ctx.beginPath();
+      ctx.moveTo(x, yLow);
+      let x1 = Math.ceil((word.currentTargetPos.x + RIGHT) * 5);
+      let y1 = Math.ceil((TOP - word.currentTargetPos.y) * 5);
+      let yavg = Math.ceil((y + y1) / 2);
+      ctx.bezierCurveTo(x, yavg, x1, yavg, x1, y1);
+      ctx.stroke();
+    }
   }
 
   /**
@@ -277,11 +300,11 @@ export class Visualization {
    * @param axis Postive and negative sides of the axis.
    */
   private makeAxisWord(axis: string[]) {
-    const axisWordColor =
-        utils.toHSL(this.axisColor.h, this.axisColor.s, this.axisColor.v);
-
+    const axisWordColor = 'rgb(255, 160, 0)';
     // Make div and add axis words.
-    const axisDiv = this.parent.append('div').classed('axis-row', true);
+    const holder = d3.select('#vis-bg');
+    const axisDiv = holder.append('div').classed('axis-row', true);
+
     axisDiv.style('color', axisWordColor);
     axisDiv.append('div').classed('axis', true).text(axis[0].toUpperCase());
     axisDiv.append('div').classed('axis', true).text(axis[1].toUpperCase());
@@ -290,151 +313,105 @@ export class Visualization {
     const scaleHeight = this.axesToYPos(axisIdx);
 
     axisDiv.style('top', (TOP - scaleHeight) * 5);
-    axisDiv.style('font-size', 70 * this.axisSize);
+    axisDiv.style('font-size', 50);
     this.axesWidths.push(WIDTH * 3 / 4);
 
     // Add top bar.
-    const bar = this.parent.append('div').classed('bar', true);
+    const bar = holder.append('div').classed('bar', true);
     bar.style('background-color', axisWordColor);
+    bar.style('opacity', 0.5)
     bar.style('top', (TOP - scaleHeight) * 5);
-  }
-  //////////////////////////////////////////////////////////////////////////////
-  // Updating positions, etc                                                  //
-  //////////////////////////////////////////////////////////////////////////////
 
-  /** Update the position of the rain drops */
-  private updateRain() {
-    const verts = this.rainGeometry.attributes.position.array;
-    for (let i = 0; i < NUM_RAINDROPS; i++) {
-      const j = i * 3;
-      const vert = new Vector3(verts[j], verts[j + 1], verts[j + 2]);
-      const pull = this.rainGeometry.userData.pulls[i];
-      const vel = this.rainGeometry.userData.vels[i];
-      const posVel = this.getNewLoc(vert, vel, pull, true, 1);
-      verts[j] = posVel.x;
-      verts[j + 1] = posVel.y;
-      verts[j + 2] = posVel.z;
-      this.rainGeometry.userData.vels[i] = posVel.v;
-
-      // When the rain hits the bottom, wrap (rather than continuously
-      // generating more rain.)
-      if (posVel.y < BOTTOM) {
-        verts[j] = this.randomXPos();
-        verts[j + 1] = TOP * 1.2;
-        verts[j + 2] = 0;
-        this.rainGeometry.userData.vels[i] = 0;
+    // Add tick marks
+    if (true) {
+      for (let i = 0; i < 20; i++) {
+        const tick = bar.append('div').classed('tick', true);
+        tick.style('background-color', axisWordColor);
       }
     }
-    this.rainGeometry.attributes.position.needsUpdate = true;
   }
 
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Updating positions, etc //
+  //////////////////////////////////////////////////////////////////////////////
+
+
   /** Update the position of the words. */
-  private updateWords() {
+  updateWords() {
     for (let i = this.words.length - 1; i > -1; i--) {
       let wordObj = this.words[i];
+
       const vel = wordObj.vel;
       const pos = wordObj.pos;
-      const isQueryWord = wordObj.isQueryWord;
-      const queryWordScale = 3;
-      const div = wordObj.div;
 
-      // Determine which level we are at, and get the pull accordingly (i.e., if
-      // we're falling toward the "he/she" axis, use the "he/she" pull.)
+      // Determine which level we are at, and get the pull accordingly
+      // (i.e.,if we're falling toward the "he/she" axis, use the "he/she"
+      // pull.)
       const axesIdx = this.yPosToAxes(pos.y);
       const bias = wordObj.pulls[axesIdx];
 
       // Figure out what two axes we are between (with clamping.)
       const axisContinuous = this.axesToYPosContinuous(pos.y);
       const prevBias = wordObj.pulls[this.clampAxis(axisContinuous + 1)];
-      const blendVal = Math.max(axisContinuous % 1, 0);
+      const blendVal = Math.min(Math.max(axisContinuous % 1, 0), 1);
 
       // The scale the weighted average of those (weighted by position between
       // them.)
-      let scale = utils.lerp(blendVal, Math.abs(prevBias), Math.abs(bias));
+      let speed = utils.lerp(blendVal, Math.abs(prevBias), Math.abs(bias));
 
       // Turn the scale in to an exponential scale. Note that these parameters
       // are chosen purely on aesthetic bases.
-      const power = 2;
-      const scaleFactor = 5;
-      const addFactor = .2;
-      scale = Math.pow(scale + addFactor, power) * scaleFactor;
-      scale = isQueryWord ? queryWordScale : scale;
+      const power = 5;
+      const scaleFactor = 3;
+      const addFactor = .3;
+      speed = Math.pow(speed, power) * scaleFactor + addFactor;
+      speed = Math.abs(speed);
 
       // Axis width (in 3js space.)
       const axesWidth = this.axesWidths[axesIdx];
 
       // Target location, (in %.)
-      const targetLoc = (axesWidth / WIDTH) * bias;
+      const targetLoc = (axesWidth / WIDTH) * utils.clamp(bias, -1, 1);
+      const targetLocPrev = (axesWidth / WIDTH) * utils.clamp(prevBias, -1, 1);
 
       // Spring force toward the target location, (in %.)
-      const springForceK = 2;
-      const pull = (targetLoc - pos.x / (WIDTH / 2)) / springForceK;
-
-      // Caluclate and set the new position.
-      const posVel =
-          this.getNewLoc(pos, vel, pull, false, isQueryWord ? 1 : bias * .99);
-
-      let x = (posVel.x + RIGHT) * 5 - wordObj.width / 2;
-      let y = (TOP - posVel.y) * 5;
-      const fontScale = this.trueFontSize / this.desiredFontSize;
-
-      if (!isQueryWord) {
-        div.style('opacity', scale / scaleFactor + addFactor);
-        const numLines = wordObj.string.split(' ').length;
-        y -= (this.trueFontSize + fontScale * scale) / 2 * numLines;
-      } else {
-        y -= 260;
-      }
-
-      this.transform(div, x, y, scale / fontScale);
+      const springForceKNow = .1;
+      const springForceKPrev = 1;
+      const pullNow = (targetLoc - pos.x / (WIDTH / 2)) / springForceKNow;
+      const pullPrev = (targetLocPrev - pos.x / (WIDTH / 2)) / springForceKPrev;
+      const pull = utils.lerp(blendVal, pullPrev, pullNow);
+      const posVel = this.getNewLoc(pos, vel, pull, speed, wordObj);
 
       wordObj.pos.x = posVel.x;
       wordObj.pos.y = posVel.y;
       wordObj.pos.z = posVel.z;
       wordObj.vel = posVel.v;
 
-      // Update the blur trail's poisition and scale.
-      const blur = this.blurs[i];
-      const yPos = isQueryWord ? queryWordScale * 4 : 1;
-      blur.position.set(posVel.x, posVel.y + this.wordSize * yPos, posVel.z);
-      blur.scale.x = isQueryWord ? queryWordScale : 1;
-      blur.scale.y = isQueryWord ? queryWordScale : 1;
+      wordObj.distToAxis = blendVal;
+      wordObj.currentAxis = Math.floor(this.axesToYPosContinuous(pos.y) + 0.5);
+      wordObj.currentTargetPos.x = targetLoc * (WIDTH / 2);
+      wordObj.currentTargetPos.y = this.axesToYPos(axesIdx);
+      if (!wordObj.isBackgroundWord) {
+        wordObj.opacity = (speed - addFactor) * (1 - .1) + .5;
+      }
+      this.drawWord(wordObj)
 
       // If the mesh is offscreen, delete all its components.
-      if (posVel.y < BOTTOM + 5) {
-        this.deleteWord(i);
+      if (posVel.y < BOTTOM - 50) {
+        if (wordObj.isBackgroundWord) {
+          wordObj.pos.y = TOP;
+          wordObj.pos.z = 0;
+        } else {
+          this.deleteWord(i);
+        }
       }
     }
   }
 
-  private transform(div: Selection, x: number, y: number, scale: number) {
-    div.node().style.webkitTransform =
-        `translate3d(${x}px, ${y}px, 0px) scale(${scale},${scale}`;
-    div.node().style.transform =
-        `translate3d(${x}px, ${y}px, 0px) scale(${scale},${scale}`;
-  }
-
   /** Remove the word and other shapes associate with it. */
   private deleteWord(wordIdx: number) {
-    this.words[wordIdx].div.node().remove();
     this.words.splice(wordIdx, 1);
-
-    // Delete blur.
-    const blur = this.blurs[wordIdx];
-    this.deleteMesh(blur);
-    this.blurs.splice(wordIdx, 1);
-  }
-
-  /**
-   * Dispose of the mesh fully.
-   * @param obj Mesh to be removed
-   */
-  private deleteMesh(obj: THREE.Mesh) {
-    obj.parent.remove(obj);
-    obj.geometry.dispose();
-    if (!Array.isArray(obj.material)) {
-      obj.material.dispose();
-    }
   }
 
   /**
@@ -447,13 +424,13 @@ export class Visualization {
    * @param isRain: Is this rain?
    */
   private getNewLoc(
-      prevPos: THREE.Vector3, prevV: number, xForce: number, isRain: boolean,
-      bias: number) {
-    let speed = isRain ? this.rainSpeed : this.wordSpeed;
+      prevPos: THREE.Vector3, prevV: number, xForce: number, bias: number,
+      word: word) {
+    let speed = this.wordSpeed;
 
     // Removing speed change based on word bias for now, but leaving in the
     // logic for debugging purposes.
-    // speed = speed * Math.abs(Math.pow(bias, 3));
+    speed = speed / bias;
 
     // Update x position with the force.
     const x = prevPos.x + xForce * speed;
@@ -463,33 +440,25 @@ export class Visualization {
     let v = prevV + fGravity * speed;
 
     // Add som terminal velocity.
-    if (!isRain) {
-      v = Math.max(v, -this.wordSpeed);
-    }
+    v = Math.max(v, -this.wordSpeed);
     let y = prevPos.y + v;
     let z = prevPos.z;
 
     // Bounce is less high for words, cause it looks pretty annoying.
-    let vBounce;
-    if (!isRain) {
-      const bounceDampener = 10;
-      vBounce = 1 / 100 + Math.random() / bounceDampener;
-    } else {
-      const bounceDampener = 3;
-      vBounce = -v * Math.random() / bounceDampener;
-    }
+    const bounceDampener = 10;
+    let vBounce = 1 / 100 + Math.random() / bounceDampener;
+    vBounce = 0;
 
     // Figure out if we're near a word axis, and bounce if so.
     const numAxes = this.axes.length;
     for (let i = 0; i < numAxes; i++) {
       const height = this.axesToYPos(i);
-      const widthExtent = this.axesWidths[i] / 2;
-      if (utils.isNear(y, height) && prevPos.x < widthExtent &&
-          prevPos.x > -widthExtent) {
+      if (utils.isNear(y, height)) {
         if (prevPos.z < numAxes - i) {
           v = vBounce;
           y = height
           z = numAxes - i;
+          word.numFrames = 0;
         }
       }
     }
@@ -501,14 +470,9 @@ export class Visualization {
     return (RIGHT - LEFT) * Math.random() - RIGHT;
   }
 
-  /** Center, in THREE js units, along the x axis. */
-  private centerXPos() {
-    return (RIGHT - LEFT) / 2 - RIGHT;
-  }
-
-  /** Randomn position, in THREE js units, along the y axis. */
-  private randomRainYPos() {
-    return TOP * 1.2 * Math.random();
+  /** Randomn position, in THREE js units, along the x axis. */
+  private randomYPos() {
+    return (TOP - BOTTOM) * Math.random();
   }
 
   /** Return the y position given a word axis index. */
@@ -518,6 +482,7 @@ export class Visualization {
     return TOP * (axisIdx + 1) / (numAxes + 1);
   }
 
+  /** COnvert from axes location to y position. */
   private axesToYPosContinuous(y: number) {
     const numAxes = this.axes.length;
     const percentageFromTop = y / TOP;
@@ -543,6 +508,6 @@ export class Visualization {
   private addStats() {
     this.stats = Stats.default();
     this.stats.showPanel(0);  // 0: fps, 1: ms, 2: mb, 3+: custom
-    document.body.appendChild(this.stats.dom);
+    // document.body.appendChild(this.stats.dom);
   }
 }
