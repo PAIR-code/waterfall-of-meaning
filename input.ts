@@ -19,8 +19,7 @@ import Dexie from 'dexie';
 import trie from 'trie-prefix-tree';
 import * as utils from './visualization/utils';
 
-const EMBEDDINGS_DIR =
-    'https://storage.googleapis.com/barbican-waterfall-of-meaning/'
+const EMBEDDINGS_DIR = 'https://storage.googleapis.com/waterfall-of-meaning/'
 const EMBEDDINGS_WORDS_URL = EMBEDDINGS_DIR + 'embedding-words.json';
 const EMBEDDINGS_VALUES_URL = EMBEDDINGS_DIR + 'embedding-values.bin';
 const BARBICAN_DATABASE_NAME = 'barbican-database';

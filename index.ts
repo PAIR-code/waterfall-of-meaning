@@ -21,8 +21,7 @@ import * as utils from './visualization/utils';
 import {Visualization} from './visualization/visualization'
 import {WordEmbedding} from './word_embedding';
 
-const EMBEDDINGS_DIR =
-    'https://storage.googleapis.com/barbican-waterfall-of-meaning/'
+const EMBEDDINGS_DIR = 'https://storage.googleapis.com/waterfall-of-meaning/'
 const EMBEDDINGS_WORDS_URL = EMBEDDINGS_DIR + 'embedding-words.json';
 const EMBEDDINGS_VALUES_URL = EMBEDDINGS_DIR + 'embedding-values.bin';
 const BARBICAN_DATABASE_NAME = 'barbican-database';
@@ -109,6 +108,7 @@ async function showResults(qWord: string = null) {
   }
   if (emb.hasWord(qWord)) {
     projectWordsVis(qWord);
+    textInputElement.value = '';
   }
 }
 
