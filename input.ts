@@ -31,12 +31,12 @@ let inputId = 0;
 /** Default words to input when no one is interacting. */
 let defaultInputsId = 0;
 const defaultInputs = [
-  'doctor', 'dragon',     'fear',     'feline',   'teach',  'nurse', 'laugh',
-  'beer',   'squid',      'soda',     'witch',    'soccer', 'shark', 'facebook',
-  'clever', 'politician', 'dance',    'football', 'meat',   'grass', 'red',
-  'skull',  'labor',      'fabulous', 'pickle',   'fish',   'donut'
+  'doctor', 'teach',    'nurse', 'politician', 'Witch', 'fear',  'laugh',
+  'clever', 'fabulous', 'labor', 'dragon',     'squid', 'shark', 'feline',
+  'beer',   'soda',     'Meat',  'pickle',     'fish',  'donut', 'soccer',
+  'dance',  'football', 'grass', 'red',        'skull'
 ];
-const AUTO_INPUT_TIMEOUT_MS = 15000;
+const AUTO_INPUT_TIMEOUT_MS = 20000;
 
 const button =
     document.getElementById('button').getElementsByClassName('mdl-button')[0];
@@ -46,7 +46,6 @@ const main = document.getElementById('main');
 let prefixTrie: trie;
 let searchId = 0;
 const circle = document.getElementById('circle');
-circle.style.backgroundColor = getBgColor(0);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Miscelaneous functions.
@@ -55,31 +54,14 @@ function hideAutocomplete(hide: boolean) {
   autocomplete.style.display = hide ? 'none' : 'block';
 }
 
-function getBgColor(id: number) {
-  return utils.toHSL((id * 36) % 360, .5, .75);
-}
-
-/**
- * We want all words in the group to be the same color. So they get an
- * id. But, we want this id different from the one before it, for color
- * variation. Searchid is being incremented by 1 each time, but but we want the
- * color to be visually distinct from the one before). So, since 7 and 10 are
- * relatively prime, this modulo operation will generate a sequence of different
- * colors that are not close to each other and circles through all colors.
- */
-function uniqueColorFromId(id: number) {
-  return (searchId * 7) % 10;
-}
-
 /**
  * Send a word to the front end (w/ animation.)
  * @param word word to send to the other front end
  */
 async function sendWord(word: string) {
-  inputId++;
-  word = word.replace(' ', '_');
+  word = word.replace(/_/g, ' ').toLowerCase();
 
-  const message = {'word': word, 'colorId': uniqueColorFromId(searchId)};
+  const message = {'word': word};
   bc.postMessage(message);
   textInput.value = '';
   button.setAttribute('disabled', 'true');
@@ -89,9 +71,7 @@ async function sendWord(word: string) {
   await utils.sleep(1000);
   circle.classList.remove('side');
 
-  // Set the circle color to the *next* color.
   searchId++;
-  circle.style.backgroundColor = getBgColor(uniqueColorFromId(searchId));
   circle.classList.add('invisible');
   await utils.sleep(1000);
   circle.classList.remove('invisible');
@@ -118,6 +98,7 @@ main.onclick = () => hideAutocomplete(true);
  * For dealing with the user typing in the input box.
  */
 textInput.onkeyup = (ev: KeyboardEvent) => {
+  inputId++;
   clear(autocomplete);
   hideAutocomplete(true);
   const letters = textInput.value;
@@ -148,13 +129,12 @@ textInput.onkeyup = (ev: KeyboardEvent) => {
         const option = autocomplete.appendChild(document.createElement('div'));
 
         // Bold everything except the prefix.
-        option.innerHTML = (letters + suffix.bold());
+        option.innerHTML = (letters.toLowerCase() + suffix.bold());
         option.className += ' autocomplete-item';
 
         // If the user clicks an option, select that one.
         option.onclick = () => {
-          textInput.value = word;
-          button.removeAttribute('disabled');
+          sendWord(word);
         }
       }
     } else {
@@ -172,7 +152,7 @@ async function setup() {
   const words = data.words;
   // Make prefix tree.
   for (let i = 0; i < words.length; i++) {
-    words[i] = words[i].replace('_', ' ');
+    words[i] = words[i].toLowerCase().replace(/_/g, ' ');
   }
   prefixTrie = trie(words);
   startWaiting();
