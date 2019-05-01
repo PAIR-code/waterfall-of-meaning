@@ -135,7 +135,8 @@ export class Visualization {
       word: string, similarities: number[], isQueryWord: boolean,
       isBackgroundWord: boolean) {
     // Rate limit number of words added.
-    if (this.words.length > MAX_WORDS && !isQueryWord) {
+    const rateLimitExceeded = this.words.length > MAX_WORDS && !isQueryWord;
+    if (rateLimitExceeded || this.wordAlreadyAdded(word, isQueryWord)) {
       return;
     }
 
@@ -279,7 +280,7 @@ export class Visualization {
       const yLow = y + 5;
       ctx.lineWidth = word.isQueryWord ? 5 : 1;
       ctx.moveTo(x, yLow);
-      ctx.lineTo(x + word.width * .9, yLow);
+      ctx.lineTo(x + word.width, yLow);
       ctx.stroke();
 
       // Add line to target.
@@ -428,9 +429,11 @@ export class Visualization {
       word: word) {
     let speed = this.wordSpeed;
 
-    // Removing speed change based on word bias for now, but leaving in the
-    // logic for debugging purposes.
-    speed = speed / bias;
+    // Unless the word is the query word, make more "interesting" words last
+    // longer on the screen.
+    if (!word.isQueryWord) {
+      speed = speed / bias;
+    }
 
     // Update x position with the force.
     const x = prevPos.x + xForce * speed;
@@ -509,5 +512,16 @@ export class Visualization {
     this.stats = Stats.default();
     this.stats.showPanel(0);  // 0: fps, 1: ms, 2: mb, 3+: custom
     // document.body.appendChild(this.stats.dom);
+  }
+
+  /** Is the word already on screen as a query word? */
+  private wordAlreadyAdded(word: string, isQueryWord: boolean) {
+    for (let i = 0; i < this.words.length; i++) {
+      const wordObj = this.words[i];
+      if (wordObj.string == word && wordObj.isQueryWord == isQueryWord) {
+        return true;
+      }
+    }
+    return false;
   }
 }

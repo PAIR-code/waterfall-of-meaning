@@ -97,7 +97,6 @@ export async function loadDatabase(
   const returns = filterBadWords(words, embeddings);
   words = returns.words;
   embeddings = returns.embeddings;
-
   return {words, embeddings};
 }
 
@@ -129,8 +128,8 @@ export function filterBadWords(words: string[], embeddings: Float32Array) {
 
 // Taken from
 // https://stackoverflow.com/questions/118241/calculate-text-width-with-javascript
-export function stringWidth(str: string, scale: number) {
-  var f = scale + 'px Roboto Condensed',
+export function stringWidth(str: string, fontsize: number) {
+  var f = fontsize + 'px Roboto Condensed',
       o = $('<div></div>')
               .text(str)
               .css({

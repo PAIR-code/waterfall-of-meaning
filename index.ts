@@ -106,7 +106,7 @@ async function showResults(qWord: string = null) {
   if (!qWord) {
     qWord = textInputElement.value;
   }
-  if (emb.hasWord(qWord)) {
+  if (emb.hasWord(qWord) && !isInAxes(qWord, visAxes)) {
     projectWordsVis(qWord);
     textInputElement.value = '';
   }
@@ -177,6 +177,16 @@ async function setup() {
   // Calculate dictionary of every word's similarity to the axes.
   projections = await precalculatProjections(words);
   createBackgroundWords(projections);
+}
+
+function isInAxes(word: string, visAxes: string[][]) {
+  for (let i = 0; i < visAxes.length; i++) {
+    const axis = visAxes[i];
+    if (axis.indexOf(word) > -1) {
+      return true;
+    }
+  }
+  return false;
 }
 
 setup();
