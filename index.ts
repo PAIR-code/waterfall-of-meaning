@@ -145,6 +145,7 @@ async function precalculatProjections(words: string[]) {
 }
 
 async function setup() {
+  utils.refreshAtMidnight();
   const data = await utils.loadDatabase(
       EMBEDDINGS_DIR, EMBEDDINGS_WORDS_URL, EMBEDDINGS_VALUES_URL);
 

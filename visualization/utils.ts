@@ -94,7 +94,7 @@ export async function loadDatabase(
     await db.close();
   }
 
-  const returns = filterBadWords(words, embeddings);
+  const returns = filterWords(words, embeddings);
   words = returns.words;
   embeddings = returns.embeddings;
   return {words, embeddings};
@@ -111,18 +111,25 @@ export function shuffle(a: any[]) {
   return a;
 }
 
-export function filterBadWords(words: string[], embeddings: Float32Array) {
-  const embeddingsArr = Array.from(embeddings);
-  const dim = embeddings.length / words.length;
+  export function filterWords(words: string[], embeddings: Float32Array) {
+    const embeddingsArr = Array.from(embeddings);
+    const dim = embeddings.length / words.length;
+    const filteredWords = [];
+    const filteredEmbs = [];
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+      const wordInBlacklist = BadWords.BadWords.indexOf(word) > -1;
+      const wordHasSexSubstr =  word.includes('sex');
+      const multipleWords = word.includes('_');
 
-  for (let i = words.length - 1; i >= 0; i--) {
-    const word = words[i];
-    if (BadWords.BadWords.indexOf(word) > -1 || word.includes('sex')) {
-      words.splice(i, 1);
-      embeddingsArr.splice(i * dim, dim);
+      if (!wordInBlacklist && !wordHasSexSubstr && !multipleWords) {
+        filteredWords.push(word);
+        filteredEmbs.push(...embeddingsArr.slice(i * dim, (i + 1) * dim));
+      }
     }
-  }
-  embeddings = new Float32Array(embeddingsArr);
+
+  words = filteredWords;
+  embeddings = new Float32Array(filteredEmbs);
   return {words, embeddings};
 }
 
@@ -176,4 +183,19 @@ export function parseURL(): {[id: string]: string;} {
     return params;
   }
   return {};
+}
+
+/** Refresh the page at midnight.
+ *  Taken from https://stackoverflow.com/questions/21512551/how-to-update-your-homepage-at-a-certain-time.
+ * */
+export function refreshAtMidnight() {
+  const now = new Date();
+  const night = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1, // the next day, ...
+      0, 0, 0 // ...at 00:00:00 hours
+  );
+  const msTillMidnight = night.getTime() - now.getTime();
+  setTimeout(() => document.location.reload(), msTillMidnight);
 }

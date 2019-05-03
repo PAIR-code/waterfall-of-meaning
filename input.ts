@@ -42,10 +42,10 @@ const button =
     document.getElementById('button').getElementsByClassName('mdl-button')[0];
 const textInput = <HTMLInputElement>document.getElementById('wordInput');
 const autocomplete = document.getElementById('autocomplete');
-const main = document.getElementById('main');
+const input_side = document.getElementById('input_side');
+const error = document.getElementById('error');
 let prefixTrie: trie;
 let searchId = 0;
-const circle = document.getElementById('circle');
 
 ///////////////////////////////////////////////////////////////////////////////
 // Miscelaneous functions.
@@ -67,14 +67,17 @@ async function sendWord(word: string) {
   button.setAttribute('disabled', 'true');
 
   // Deal with circle animation.
-  circle.classList.add('side');
-  await utils.sleep(1000);
-  circle.classList.remove('side');
+  const circle = document.createElement('div');
+  circle.classList.add('circle');
+  input_side.appendChild(circle);
+  circle.innerHTML = word;
+  await utils.sleep(10);
+  circle.classList.add('bottom');
+  await utils.sleep(3000);
+  input_side.removeChild(circle);
 
   searchId++;
-  circle.classList.add('invisible');
-  await utils.sleep(1000);
-  circle.classList.remove('invisible');
+
 }
 
 /**  Clear all children of an HTML element. */
@@ -89,10 +92,10 @@ function clear(div: HTMLElement) {
 ///////////////////////////////////////////////////////////////////////////////
 button.onclick = () => {
   const word = textInput.value;
-  sendWord(word);
+  attemptSendWord(word);
 };
 
-main.onclick = () => hideAutocomplete(true);
+input_side.onclick = () => hideAutocomplete(true);
 
 /**
  * For dealing with the user typing in the input box.
@@ -101,40 +104,40 @@ textInput.onkeyup = (ev: KeyboardEvent) => {
   inputId++;
   clear(autocomplete);
   hideAutocomplete(true);
+  error.classList.add('hidden');
   const letters = textInput.value;
 
+  if (letters.length){
+    button.removeAttribute('disabled');
+  } else {
+    button.setAttribute('disabled', 'true');
+  }
+
   // If the key was "enter," go ahead and submit.
-  if (ev.which === 13 && prefixTrie.hasWord(letters)) {
+  if (ev.which === 13) {
     hideAutocomplete(true);
-    sendWord(letters);
+    attemptSendWord(letters);
   }
 
   // Otherwise, show the autocomplete list.
   else {
-    // Enable or disable button, depending on if the word is allowed.
-    if (prefixTrie.hasWord(letters)) {
-      button.removeAttribute('disabled');
-    } else {
-      button.setAttribute('disabled', 'true');
-    }
-
     // Show all the potential words that start with this substring.
     const numLetters = letters.length;
     if (numLetters > 0) {
       const potentialWords = prefixTrie.getPrefix(letters);
-      for (let i = 0; i < Math.min(10, potentialWords.length); i++) {
+      for (let i = 0; i < Math.min(5, potentialWords.length); i++) {
         hideAutocomplete(false);
         const word = potentialWords[i];
         const suffix = word.substring(numLetters);
         const option = autocomplete.appendChild(document.createElement('div'));
 
         // Bold everything except the prefix.
-        option.innerHTML = (letters.toLowerCase() + suffix.bold());
+        option.innerHTML = (letters.toLowerCase().bold() + suffix);
         option.className += ' autocomplete-item';
 
         // If the user clicks an option, select that one.
         option.onclick = () => {
-          sendWord(word);
+          textInput.value = word;
         }
       }
     } else {
@@ -143,9 +146,23 @@ textInput.onkeyup = (ev: KeyboardEvent) => {
   }
 };
 
+async function attemptSendWord(word: string) {
+  if (prefixTrie.hasWord(word)) {
+    sendWord(word);
+  }
+  else {
+    textInput.value = '';
+    button.setAttribute('disabled', 'true');
+    error.classList.remove('hidden');
+    await utils.sleep(3000);
+    error.classList.add('hidden');
+  }
+}
+
 // Load the embeddings from the database. TODO: probably combine this with the
 // other one.
 async function setup() {
+  utils.refreshAtMidnight();
   const data = await utils.loadDatabase(
       EMBEDDINGS_DIR, EMBEDDINGS_WORDS_URL, EMBEDDINGS_VALUES_URL);
 
@@ -167,9 +184,26 @@ async function startWaiting() {
   await utils.sleep(AUTO_INPUT_TIMEOUT_MS);
   if (lastInput === inputId) {
     defaultInputsId++;
-    sendWord(defaultInputs[defaultInputsId % defaultInputs.length]);
+    const word = defaultInputs[defaultInputsId % defaultInputs.length];
+    await typewriter(word);
+    sendWord(word);
   }
   startWaiting();
+}
+
+/**
+ * Write the word to the input text field.
+ * @param word word to be written
+ */
+async function typewriter(word: string){
+  textInput.value = ''
+  hideAutocomplete(true);
+  for (let i=0; i<word.length; i++) {
+    textInput.value += word[i];
+    // Add a little bit of randomness to appear human.
+    await utils.sleep(100 + 400 * Math.random());
+  }
+  await utils.sleep(500);
 }
 
 setup();
