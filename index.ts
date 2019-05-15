@@ -21,10 +21,10 @@ import * as utils from './visualization/utils';
 import {Visualization} from './visualization/visualization'
 import {WordEmbedding} from './word_embedding';
 
+// const EMBEDDINGS_DIR = 'https://storage.googleapis.com/waterfall-of-meaning/'
 const EMBEDDINGS_DIR = 'https://storage.googleapis.com/waterfall-of-meaning/'
 const EMBEDDINGS_WORDS_URL = EMBEDDINGS_DIR + 'embedding-words.json';
 const EMBEDDINGS_VALUES_URL = EMBEDDINGS_DIR + 'embedding-values.bin';
-const BARBICAN_DATABASE_NAME = 'barbican-database';
 
 let NEIGHBOR_COUNT = 30;
 let emb: WordEmbedding;
@@ -145,6 +145,18 @@ async function precalculatProjections(words: string[]) {
 }
 
 async function setup() {
+
+  // Parse the params from the url.
+  const params = utils.parseURL();
+
+  // If it's specified to only use the other input UI, hide the bar at the top.
+  if (('hideInput' in params) && (params['hideInput'] === 'true')) {
+    document.getElementById('input_bar').style.display = 'none';
+  }
+  if (('hideOverflow' in params) && (params['hideOverflow'] === 'true')) {
+    document.body.style.overflow = 'hidden';
+  }
+
   utils.refreshAtMidnight();
   const data = await utils.loadDatabase(
       EMBEDDINGS_DIR, EMBEDDINGS_WORDS_URL, EMBEDDINGS_VALUES_URL);
@@ -163,14 +175,6 @@ async function setup() {
   const embeddingTensor = tf.tensor2d(embeddings, [embLen, dimensions]);
   emb = new WordEmbedding(embeddingTensor, words);
 
-
-  // Parse the params from the url.
-  const params = utils.parseURL();
-
-  // If it's specified to only use the other input UI, hide the bar at the top.
-  if (('hideInput' in params) && (params['hideInput'] === 'true')) {
-    document.getElementById('input_bar').style.display = 'none';
-  }
   // Calculate the axis norms.
   axisNorms =
       await emb.computeAverageWordSimilarity(visAxes).data() as Float32Array;
@@ -195,7 +199,7 @@ setup();
 // Call this from the JavaScript console if you want to clear the IndexedDB
 // cache.
 (window as any).clearDatabase = async () => {
-  const db = new Dexie(BARBICAN_DATABASE_NAME);
+  const db = new Dexie(EMBEDDINGS_DIR);
   db.version(1).stores({embeddings: 'words,values'});
   await db.delete();
   console.log('Database deleted.');

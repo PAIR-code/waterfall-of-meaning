@@ -20,6 +20,7 @@ limitations under the License.
     display: flex;
     flex-direction: row;
     height: 100vh;
+    overflow: hidden;
   }
 
   .side_holder {
@@ -40,12 +41,12 @@ limitations under the License.
     flex-direction: column;
     justify-content: space-between;
     float: right;
-    padding: 10vh 2.5vw;
   }
 
   #title {
     font-size: 48px;
     line-height: normal;
+    margin: 10vh 2.5vw;
   }
 
   .bold {
@@ -53,9 +54,11 @@ limitations under the License.
   }
 
   #info {
-    padding-top: 10%;
+    /* padding-top: 10%; */
     font-size: 16px;
     line-height: 24px;
+    margin: 2.5vw;
+    margin-bottom: 10vh;
   }
 
   #input_side {
@@ -208,27 +211,17 @@ limitations under the License.
         <div class='bold'>
           Type a word and hit enter
         </div>
-        to drop it into the
-        <br> waterfall of meaning
+        to see its associations
       </div>
       <div id='info'>
-        Language is subtle. Words may have multiple meanings and the same word can be used in different ways. This
-        flexibility speaks to the richness of human language, full of associations and subtext.
+        These associations show how people use language. For example "caviar" and "pizza" aren't just two kinds of
+        food--they have rich cultural associations. When a word crosses an axis in the display, its location shows where
+        it falls on the spectrum - for instance, is "caviar" associated more with the word "cheap" or "expensive"?
         <br>
         <br>
-        Subconsciously, we consider certain words to be new or old, good or bad, male or female. When machines “read”
-        text--from books, articles, letters--they start to learn how language is used and pick up on the multiple
-        associations that may exist. For example: how are the words “caviar” and “pizza” used? Do they show up in the
-        same contexts frequently? Are they used in the same way? Waterfall of Meaning uses technology called ‘word
-        embeddings’ to analyse millions of existing English sentences and map words’ meaning based on their use. When a
-        word crosses an axis, its location shows where it falls on the spectrum - for instance, is “caviar” more male or
-        female, based on this data?
-        <br>
-        <br>
-        To this end, any biases that are found in the data will be reflected in the model as well. For this reason, it's
-        paramount to ensure that these models are not being used in ways that enforce existing biases, and to continue
-        developing ways to de-bias these models.
-      </div>
+        To this end, any biases with these associations will be shown as well. For this reason, it's paramount to
+        ensure that these models are not being used in ways that enforce existing biases, and to continue developing
+        ways to de-bias these models. </div>
     </div>
   </div>
   <div class='side_holder'>

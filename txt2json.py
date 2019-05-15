@@ -17,21 +17,30 @@
 import json
 import numpy as np
 
-FILENAME = 'w2v_gnews_small.txt'
+FILENAME_GNEWS = 'w2v_gnews_small.txt'
+FILENAME_ADDTL_WORDS = 'extra_words.txt'
 
-f = open(FILENAME, 'r')
+f = open(FILENAME_GNEWS, 'r')
 lines = f.read().split('\n')
 f.close()
+
+f = open(FILENAME_ADDTL_WORDS, 'r')
+lines += f.read().split('\n')
+f.close()
+print('read files')
 
 words = []
 embeddings = []
 
-lent = 0
 for line in lines:
   vals = line.split(' ')
 
-  words.append(vals[0])
-  embeddings.append([float(val) for val in vals[1:]])
+  word = vals[0]
+  if word not in words:
+    words.append(vals[0])
+    embeddings.append([float(val) for val in vals[1:]])
+
+print('translated embeddings')
 
 f = open('embedding-words.json', 'w')
 f.write(json.dumps(words))

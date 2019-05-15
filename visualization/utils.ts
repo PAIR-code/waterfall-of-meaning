@@ -19,36 +19,10 @@
 import Dexie from 'dexie';
 import * as BadWords from '../badwords'
 var $ = require('jquery');
-import * as THREE from 'three';
 
 /** Is the y value near the top value? (Within 10.) */
 export function isNear(y: number, top: number) {
   return (y < top && y > top - 10)
-}
-
-/** Make a sprite to use as a rain drop. */
-export function makeSprite() {
-  const canvas = document.createElement('canvas');
-  const size = 16;
-  canvas.width = size;
-  canvas.height = size;
-  const context = canvas.getContext('2d');
-
-  context.beginPath();
-  context.ellipse(size / 2, size / 2, size / 10, size / 2, 0, 0, 2 * Math.PI);
-
-  context.fillStyle = '#777';
-  context.fill();
-
-  const sprite = new THREE.Texture(canvas);
-  sprite.needsUpdate = true;
-  return sprite
-}
-
-/** Convert h, s and l values to a string to be used by THREE.js */
-export function toHSL(h: number, s: number, l: number) {
-  return 'hsl(' + h + ',' + Math.ceil(s * 100) + '%,' + Math.ceil(l * 100) +
-      '%)';
 }
 
 /** Linearly interpolate between two values. */

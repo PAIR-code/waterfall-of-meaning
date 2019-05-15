@@ -17,9 +17,13 @@ limitations under the License.
     font-size: 11pt;
     font-family: 'futura', 'Trebuchet MS', 'Arial', 'sans-serif';
     letter-spacing: 0.7px;
-    margin-left: 100px;
     position: relative;
     background-color: black;
+    margin: 0px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 1200px;
   }
 
   body canvas {
@@ -113,13 +117,17 @@ limitations under the License.
     display: flex;
     justify-content: space-between;
   }
+
+  #centered {
+    position: relative;
+    width: 960px;
+  }
 </style>
 <link href="https://fonts.googleapis.com/css?family=Roboto|Roboto+Condensed:300,700" rel="stylesheet">
-<div id="body">
-
-  <div id='input_bar'>
-    <input type="text" id="word-input">
-  </div>
+<div id='input_bar'>
+  <input type="text" id="word-input">
+</div>
+<div id='centered'>
   <div id='vis-bg'></div>
   <div id='vis-holder'></div>
 </div>

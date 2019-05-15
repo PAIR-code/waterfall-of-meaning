@@ -23,7 +23,6 @@ const EMBEDDINGS_DIR =
     'https://storage.googleapis.com/waterfall-of-meaning/'
 const EMBEDDINGS_WORDS_URL = EMBEDDINGS_DIR + 'embedding-words.json';
 const EMBEDDINGS_VALUES_URL = EMBEDDINGS_DIR + 'embedding-values.bin';
-const BARBICAN_DATABASE_NAME = 'barbican-database';
 const bc = new BroadcastChannel('word_flow_channel');
 
 /** Id of this input. Used when auto-inputing. */
@@ -42,6 +41,7 @@ const button =
     document.getElementById('button').getElementsByClassName('mdl-button')[0];
 const textInput = <HTMLInputElement>document.getElementById('wordInput');
 const autocomplete = document.getElementById('autocomplete');
+keepInputFocused();
 const input_side = document.getElementById('input_side');
 const error = document.getElementById('error');
 let prefixTrie: trie;
@@ -50,6 +50,14 @@ let searchId = 0;
 ///////////////////////////////////////////////////////////////////////////////
 // Miscelaneous functions.
 ///////////////////////////////////////////////////////////////////////////////
+function keepInputFocused() {
+  textInput.focus();
+  textInput.onblur = async () => {
+      await utils.sleep(0);
+      textInput.focus();
+  };
+}
+
 function hideAutocomplete(hide: boolean) {
   autocomplete.style.display = hide ? 'none' : 'block';
 }
@@ -73,7 +81,7 @@ async function sendWord(word: string) {
   circle.innerHTML = word;
   await utils.sleep(10);
   circle.classList.add('bottom');
-  await utils.sleep(3000);
+  await utils.sleep(30000);
   input_side.removeChild(circle);
 
   searchId++;
@@ -211,7 +219,7 @@ setup();
 // Call this from the JavaScript console if you want to clear the IndexedDB
 // cache.
 (window as any).clearDatabase = async () => {
-  const db = new Dexie(BARBICAN_DATABASE_NAME);
+  const db = new Dexie(EMBEDDINGS_DIR);
   db.version(1).stores({embeddings: 'words,values'});
   await db.delete();
   console.log('Database deleted.');

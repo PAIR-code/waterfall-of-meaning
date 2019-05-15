@@ -26,14 +26,13 @@ import * as THREE from 'three';
 import * as utils from './utils'
 
 // Width and height of DOM element.
-const ELT_WIDTH = 1000;
-const ELT_HEIGHT = 2000;
+const ELT_HEIGHT = 1920;
+const ELT_WIDTH = ELT_HEIGHT/2;
 
-// Parameters in THREEjs space.
 const TOP = ELT_HEIGHT / 5;
 const BOTTOM = 0;
-const LEFT = -TOP / 4;
-const RIGHT = TOP / 4;
+const LEFT = -ELT_WIDTH * 2 / 5 / 4;
+const RIGHT = ELT_WIDTH * 2 / 5 / 4;
 const WIDTH = RIGHT - LEFT;
 
 // Maximum number of words to be on the screen at one time.
@@ -63,9 +62,9 @@ export class Visualization {
   axesToYPosArr: number[];
   axesWidths: number[];
   animating = false;
-  camera = new THREE.OrthographicCamera(LEFT, RIGHT, TOP, BOTTOM, 2, 2000);
   trueFontSize = 100;
   wordSpeed: number = .2;
+  // wordSpeed: number = 1;
   stats: any;
 
   constructor(private axes: string[][]) {
@@ -301,7 +300,11 @@ export class Visualization {
    * @param axis Postive and negative sides of the axis.
    */
   private makeAxisWord(axis: string[]) {
-    const axisWordColor = 'rgb(255, 160, 0)';
+
+    // Hacky fix to make exhibit projector the correct color.
+    // const axisWordColor = 'rgb(255, 160, 0)';
+    const axisWordColor = 'rgb(255, 100, 0)';
+
     // Make div and add axis words.
     const holder = d3.select('#vis-bg');
     const axisDiv = holder.append('div').classed('axis-row', true);
@@ -502,7 +505,7 @@ export class Visualization {
 
   /** Return the word axis index given the y position. */
   private yPosToAxes(y: number) {
-    y = Math.floor(y);
+    y = Math.ceil(y);
     if (this.yPosToAxesArr[y]) return this.yPosToAxesArr[y];
     let axis = this.axesToYPosContinuous(y)
     return this.clampAxis(axis);
