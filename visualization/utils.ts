@@ -85,22 +85,22 @@ export function shuffle(a: any[]) {
   return a;
 }
 
-  export function filterWords(words: string[], embeddings: Float32Array) {
-    const embeddingsArr = Array.from(embeddings);
-    const dim = embeddings.length / words.length;
-    const filteredWords = [];
-    const filteredEmbs = [];
-    for (let i = 0; i < words.length; i++) {
-      const word = words[i];
-      const wordInBlacklist = BadWords.BadWords.indexOf(word) > -1;
-      const wordHasSexSubstr =  word.includes('sex');
-      const multipleWords = word.includes('_');
+export function filterWords(words: string[], embeddings: Float32Array) {
+  const embeddingsArr = Array.from(embeddings);
+  const dim = embeddings.length / words.length;
+  const filteredWords = [];
+  const filteredEmbs = [];
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    const wordInBlacklist = BadWords.BadWords.indexOf(word) > -1;
+    const wordHasSexSubstr = word.includes('sex');
+    const multipleWords = word.includes('_');
 
-      if (!wordInBlacklist && !wordHasSexSubstr && !multipleWords) {
-        filteredWords.push(word);
-        filteredEmbs.push(...embeddingsArr.slice(i * dim, (i + 1) * dim));
-      }
+    if (!wordInBlacklist && !wordHasSexSubstr && !multipleWords) {
+      filteredWords.push(word);
+      filteredEmbs.push(...embeddingsArr.slice(i * dim, (i + 1) * dim));
     }
+  }
 
   words = filteredWords;
   embeddings = new Float32Array(filteredEmbs);
@@ -124,6 +124,11 @@ export function stringWidth(str: string, fontsize: number) {
       w = o.width();
   o.remove();
   return w;
+}
+
+export function rgba(opacity: number, white = true) {
+  return white ? `rgba(255, 255, 255, ${opacity})` :
+                 `rgba(0, 0, 0, ${opacity})`;
 }
 
 
@@ -159,16 +164,28 @@ export function parseURL(): {[id: string]: string;} {
   return {};
 }
 
-/** Refresh the page at midnight.
- *  Taken from https://stackoverflow.com/questions/21512551/how-to-update-your-homepage-at-a-certain-time.
+
+export function isInAxes(word: string, visAxes: string[][]) {
+  for (let i = 0; i < visAxes.length; i++) {
+    const axis = visAxes[i];
+    if (axis.indexOf(word) > -1) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Refresh the page at midnight.
+ *  Taken from
+ * https://stackoverflow.com/questions/21512551/how-to-update-your-homepage-at-a-certain-time.
  * */
 export function refreshAtMidnight() {
   const now = new Date();
   const night = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() + 1, // the next day, ...
-      0, 0, 0 // ...at 00:00:00 hours
+      now.getFullYear(), now.getMonth(),
+      now.getDate() + 1,  // the next day, ...
+      0, 0, 0             // ...at 00:00:00 hours
   );
   const msTillMidnight = night.getTime() - now.getTime();
   setTimeout(() => document.location.reload(), msTillMidnight);

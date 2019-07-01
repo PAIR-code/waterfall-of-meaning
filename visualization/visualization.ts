@@ -25,15 +25,6 @@ import * as THREE from 'three';
 
 import * as utils from './utils'
 
-// Width and height of DOM element.
-const ELT_HEIGHT = 1920;
-const ELT_WIDTH = ELT_HEIGHT/2;
-
-const TOP = ELT_HEIGHT / 5;
-const BOTTOM = 0;
-const LEFT = -ELT_WIDTH * 2 / 5 / 4;
-const RIGHT = ELT_WIDTH * 2 / 5 / 4;
-const WIDTH = RIGHT - LEFT;
 
 // Maximum number of words to be on the screen at one time.
 const MAX_WORDS = 1300;
@@ -62,15 +53,27 @@ export class Visualization {
   axesToYPosArr: number[];
   axesWidths: number[];
   animating = false;
-  trueFontSize = 100;
-  wordSpeed: number = .2;
+  trueFontSize: number;
+  wordSpeed: number;
   // wordSpeed: number = 1;
   stats: any;
 
-  constructor(private axes: string[][]) {
+  // Width and height of DOM element.
+  eltHeight: number;
+  eltWidth: number;
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+  width: number;
+
+
+  constructor(
+      private axes: string[][], private scale = 1, private whiteWords = true) {
     this.start();
   }
   start() {
+    this.setDimensions();
     const children = document.body.getElementsByTagName('canvas');
     for (let i = 0; i < children.length; i++) {
       children[i].parentElement.removeChild(children[i]);
@@ -84,6 +87,18 @@ export class Visualization {
     if (!this.animating) {
       this.animate();
     }
+  }
+
+  private setDimensions() {
+    this.eltHeight = 2000 * this.scale;
+    this.eltWidth = this.eltHeight / 2;
+    this.top = this.eltHeight / 5;
+    this.bottom = 0;
+    this.left = -this.eltWidth * 2 / 5 / 4;
+    this.right = this.eltWidth * 2 / 5 / 4;
+    this.width = this.right - this.left;
+    this.trueFontSize = 100 * this.scale;
+    this.wordSpeed = .2 * this.scale;
   }
 
   /** Create and set up the visualization. */
@@ -105,17 +120,17 @@ export class Visualization {
 
     const ctx = this.parent.getContext('2d');
     ctx.clearRect(0, 0, this.parent.width, this.parent.height);
-    this.parent.width = ELT_WIDTH;
-    this.parent.height = ELT_HEIGHT;
+    this.parent.width = this.eltWidth;
+    this.parent.height = this.eltHeight;
 
     const bg = d3.select('#vis-bg');
-    bg.style('width', ELT_WIDTH + 'px');
-    bg.style('height', ELT_HEIGHT + 'px');
+    bg.style('width', this.eltWidth + 'px');
+    bg.style('height', this.eltHeight + 'px');
   }
 
 
   private precomputeAxesYPos() {
-    for (let i = 0; i < TOP; i++) {
+    for (let i = 0; i < this.top; i++) {
       this.yPosToAxesArr.push(this.yPosToAxes(i));
     }
     for (let i = 0; i < this.axes.length; i++) {
@@ -164,7 +179,7 @@ export class Visualization {
         utils.stringWidth(word, Math.ceil(this.trueFontSize * scale));
 
     // Start the words at the top.
-    const startYPos = isBackgroundWord ? this.randomYPos() : TOP + 10;
+    const startYPos = isBackgroundWord ? this.randomYPos() : this.top * 1.05;
 
     // If the word is a background word, make it lighter but with some
     // variation.
@@ -212,31 +227,34 @@ export class Visualization {
 
     // Draw the word itself.
     const lerpVal = utils.clamp(word.numFrames / 100, 0, 1)
-    const g = utils.lerp(lerpVal, 255, 160);
-    const b = utils.lerp(lerpVal, 255, 0);
+    const targetColor = this.whiteWords ? 255 : 0;
+    const r = utils.lerp(lerpVal, targetColor, 255);
+    const g = utils.lerp(lerpVal, targetColor, 160);
+    const b = utils.lerp(lerpVal, targetColor, 0);
 
     if (word.isQueryWord) {
-      ctx.fillStyle = `rgb(255, 255, 255, 1)`;
+      ctx.fillStyle = utils.rgba(1, this.whiteWords);
     } else if (!word.isBackgroundWord) {
-      ctx.fillStyle = `rgba(255, ${g}, ${b}, ${word.opacity})`;
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${word.opacity})`;
     } else {
-      ctx.fillStyle = `rgba(255, 255, 255, ${word.opacity})`;
+      ctx.fillStyle = utils.rgba(word.opacity, this.whiteWords);
     }
     const fontSize = Math.ceil(this.trueFontSize * word.scale);
     ctx.font = fontSize + 'px Roboto Condensed';
-    let x = (word.pos.x + RIGHT) * 5 - word.width / 2;
-    let y = (TOP - word.pos.y) * 5;
+    let x = (word.pos.x + this.right) * 5 - word.width / 2;
+    let y = (this.top - word.pos.y) * 5;
     ctx.fillText(word.string, x, y);
 
 
     // Add highlight spotlight.
     if (word.isQueryWord) {
       ctx.beginPath();
-      ctx.fillStyle = `rgba(255, 255, 255, .2)`;
-      const rady = 70;
-      const radx = Math.max(word.width * .6, rady);
+      ctx.fillStyle = utils.rgba(.2, this.whiteWords);
+      const rady = Math.ceil(60 * this.scale);
+      const radx = Math.ceil(Math.max(word.width * .6, rady));
       ctx.ellipse(
-          (word.pos.x + RIGHT) * 5, y - 20, radx, rady, 0, 0, 2 * Math.PI);
+          (word.pos.x + this.right) * 5, y - 20 * this.scale, radx, rady, 0, 0,
+          2 * Math.PI);
       ctx.fill();
     }
 
@@ -271,13 +289,14 @@ export class Visualization {
       // Underline on word
       ctx.beginPath();
       let opacity = (1 - word.distToAxis) * word.opacity * 2;
-      if (word.pos.y > TOP - 2) {
+      if (word.pos.y > this.top - 2) {
         opacity = 0;
       }
 
-      ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+      ctx.strokeStyle = utils.rgba(opacity, this.whiteWords);
       const yLow = y + 5;
-      ctx.lineWidth = word.isQueryWord ? 5 : 1;
+      ctx.lineWidth = word.isQueryWord ? Math.ceil(5 * this.scale) :
+                                         Math.ceil(1 * this.scale);
       ctx.moveTo(x, yLow);
       ctx.lineTo(x + word.width, yLow);
       ctx.stroke();
@@ -287,8 +306,8 @@ export class Visualization {
       x += word.width / 2;
       ctx.beginPath();
       ctx.moveTo(x, yLow);
-      let x1 = Math.ceil((word.currentTargetPos.x + RIGHT) * 5);
-      let y1 = Math.ceil((TOP - word.currentTargetPos.y) * 5);
+      let x1 = Math.ceil((word.currentTargetPos.x + this.right) * 5);
+      let y1 = Math.ceil((this.top - word.currentTargetPos.y) * 5);
       let yavg = Math.ceil((y + y1) / 2);
       ctx.bezierCurveTo(x, yavg, x1, yavg, x1, y1);
       ctx.stroke();
@@ -300,38 +319,31 @@ export class Visualization {
    * @param axis Postive and negative sides of the axis.
    */
   private makeAxisWord(axis: string[]) {
-
     // Hacky fix to make exhibit projector the correct color.
     // const axisWordColor = 'rgb(255, 160, 0)';
-    const axisWordColor = 'rgb(255, 100, 0)';
 
     // Make div and add axis words.
     const holder = d3.select('#vis-bg');
     const axisDiv = holder.append('div').classed('axis-row', true);
 
-    axisDiv.style('color', axisWordColor);
     axisDiv.append('div').classed('axis', true).text(axis[0].toUpperCase());
     axisDiv.append('div').classed('axis', true).text(axis[1].toUpperCase());
 
     const axisIdx = this.axes.indexOf(axis);
     const scaleHeight = this.axesToYPos(axisIdx);
 
-    axisDiv.style('top', (TOP - scaleHeight) * 5);
-    axisDiv.style('font-size', 50);
-    this.axesWidths.push(WIDTH * 3 / 4);
+    axisDiv.style('top', (this.top - scaleHeight) * 5);
+    axisDiv.style('font-size', 50 * this.scale);
+    this.axesWidths.push(this.width * 3 / 4);
 
     // Add top bar.
     const bar = holder.append('div').classed('bar', true);
-    bar.style('background-color', axisWordColor);
     bar.style('opacity', 0.5)
-    bar.style('top', (TOP - scaleHeight) * 5);
+    bar.style('top', (this.top - scaleHeight) * 5);
 
     // Add tick marks
-    if (true) {
-      for (let i = 0; i < 20; i++) {
-        const tick = bar.append('div').classed('tick', true);
-        tick.style('background-color', axisWordColor);
-      }
+    for (let i = 0; i < 20; i++) {
+      bar.append('div').classed('tick', true);
     }
   }
 
@@ -376,14 +388,16 @@ export class Visualization {
       const axesWidth = this.axesWidths[axesIdx];
 
       // Target location, (in %.)
-      const targetLoc = (axesWidth / WIDTH) * utils.clamp(bias, -1, 1);
-      const targetLocPrev = (axesWidth / WIDTH) * utils.clamp(prevBias, -1, 1);
+      const targetLoc = (axesWidth / this.width) * utils.clamp(bias, -1, 1);
+      const targetLocPrev =
+          (axesWidth / this.width) * utils.clamp(prevBias, -1, 1);
 
       // Spring force toward the target location, (in %.)
       const springForceKNow = .1;
       const springForceKPrev = 1;
-      const pullNow = (targetLoc - pos.x / (WIDTH / 2)) / springForceKNow;
-      const pullPrev = (targetLocPrev - pos.x / (WIDTH / 2)) / springForceKPrev;
+      const pullNow = (targetLoc - pos.x / (this.width / 2)) / springForceKNow;
+      const pullPrev =
+          (targetLocPrev - pos.x / (this.width / 2)) / springForceKPrev;
       const pull = utils.lerp(blendVal, pullPrev, pullNow);
       const posVel = this.getNewLoc(pos, vel, pull, speed, wordObj);
 
@@ -394,7 +408,7 @@ export class Visualization {
 
       wordObj.distToAxis = blendVal;
       wordObj.currentAxis = Math.floor(this.axesToYPosContinuous(pos.y) + 0.5);
-      wordObj.currentTargetPos.x = targetLoc * (WIDTH / 2);
+      wordObj.currentTargetPos.x = targetLoc * (this.width / 2);
       wordObj.currentTargetPos.y = this.axesToYPos(axesIdx);
       if (!wordObj.isBackgroundWord) {
         wordObj.opacity = (speed - addFactor) * (1 - .1) + .5;
@@ -402,9 +416,9 @@ export class Visualization {
       this.drawWord(wordObj)
 
       // If the mesh is offscreen, delete all its components.
-      if (posVel.y < BOTTOM - 50) {
+      if (posVel.y < this.bottom - 50) {
         if (wordObj.isBackgroundWord) {
-          wordObj.pos.y = TOP;
+          wordObj.pos.y = this.top;
           wordObj.pos.z = 0;
         } else {
           this.deleteWord(i);
@@ -473,25 +487,25 @@ export class Visualization {
 
   /** Randomn position, in THREE js units, along the x axis. */
   private randomXPos() {
-    return (RIGHT - LEFT) * Math.random() - RIGHT;
+    return (this.right - this.left) * Math.random() - this.right;
   }
 
   /** Randomn position, in THREE js units, along the x axis. */
   private randomYPos() {
-    return (TOP - BOTTOM) * Math.random();
+    return (this.top - this.bottom) * Math.random();
   }
 
   /** Return the y position given a word axis index. */
   private axesToYPos(axisIdx: number) {
     if (this.axesToYPosArr[axisIdx]) return this.axesToYPosArr[axisIdx];
     const numAxes = this.axes.length;
-    return TOP * (axisIdx + 1) / (numAxes + 1);
+    return this.top * (axisIdx + 1) / (numAxes + 1);
   }
 
   /** COnvert from axes location to y position. */
   private axesToYPosContinuous(y: number) {
     const numAxes = this.axes.length;
-    const percentageFromTop = y / TOP;
+    const percentageFromTop = y / this.top;
     let axis = percentageFromTop * (numAxes + 1) - 1;
     return axis
   }

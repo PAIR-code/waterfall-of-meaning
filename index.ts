@@ -32,7 +32,7 @@ let emb: WordEmbedding;
 const visAxes = [
   ['machine', 'human'], ['he', 'she'], ['bad', 'good'], ['expensive', 'cheap']
 ];
-let vis = new Visualization(visAxes);
+let vis = new Visualization(visAxes, .96);
 
 /**
  * Norm of each axis (that is, the average of all other vocab words projected
@@ -145,7 +145,6 @@ async function precalculatProjections(words: string[]) {
 }
 
 async function setup() {
-
   // Parse the params from the url.
   const params = utils.parseURL();
 
