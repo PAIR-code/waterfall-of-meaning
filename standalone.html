@@ -306,11 +306,16 @@ limitations under the License.
 </style>
 
 <head>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-  <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.amber-orange.min.css">
-  <link href="https://fonts.googleapis.com/css?family=Roboto|Roboto+Condensed:300,700" rel=" stylesheet">
-  <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+  <meta name="viewport"
+        content="width=device-width,initial-scale=1.0">
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet"
+        href="https://code.getmdl.io/1.3.0/material.amber-orange.min.css">
+  <link href="https://fonts.googleapis.com/css?family=Roboto|Roboto+Condensed:300,700"
+        rel=" stylesheet">
+  <script defer
+          src="https://code.getmdl.io/1.3.0/material.min.js"></script>
 </head>
 
 <body>
@@ -318,40 +323,50 @@ limitations under the License.
     <div id='info_side'>
       <div id='drawer'>
         <div id='input_holder'>
-          <div id='title' class='side-item'>
+          <div id='title'
+               class='side-item'>
             <b>
               Type a word and hit enter
             </b>
-            to see its associations in news articles
+            to see its associations in the news
           </div>
           <div class='row'>
             <div id='search-holder'>
               <div>
-                <input type="text" id="wordInput" autocomplete="off" placeholder='Enter a word' disabled>
+                <input type="text"
+                       id="wordInput"
+                       autocomplete="off"
+                       placeholder='Enter a word'
+                       disabled>
                 <div>
                   <div id='autocomplete'>
                   </div>
                 </div>
-                <div id='error' class='hidden'>
+                <div id='error'
+                     class='hidden'>
                   Oops! Word not found in our dataset. Try again!
                 </div>
               </div>
               <div id='button'>
-                <button class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" disabled>
+                <button class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect"
+                        disabled>
                   enter
                 </button>
               </div>
             </div>
-            <i class="material-icons" id='hide_show_mobile'>
+            <i class="material-icons"
+               id='hide_show_mobile'>
               expand_more
             </i>
           </div>
         </div>
-        <div id='info' class='side-item'>
+        <div id='info'
+             class='side-item'>
           These associations show how people use language, specifically in the news.
 
-          <a href='https://arxiv.org/pdf/1301.3781.pdf' target='_blank'>Word2vec</a>,
-          a ubuquitous ML model that used in this visualization, was trained on billions of
+          <a href='https://arxiv.org/pdf/1301.3781.pdf'
+             target='_blank'>Word2vec</a>,
+          a ubuquitous ML model used in this visualization, was trained on billions of
           sentences from news articles. Through this training, it
           created complex internal relationships between words based on what it
           saw in the data.
@@ -361,7 +376,8 @@ limitations under the License.
           For example, "caviar" and "pizza" aren't just two kinds of food--they
           have rich cultural associations. When a word crosses an axis in the
           display, its location shows where it falls on the spectrum - for
-          instance, was "caviar" associated more with the word "cheap" or "expensive" in the dataset?
+          instance, was "caviar" associated more with the word "cheap" or "expensive" in the
+          dataset?
           <br>
           <br>
 
@@ -380,10 +396,12 @@ limitations under the License.
   </div>
   <div id='rhs'>
     <div id="controls">
-      <i class="material-icons" id='hide_show_desktop'>
+      <i class="material-icons"
+         id='hide_show_desktop'>
         arrow_back_ios
       </i>
-      <i class="material-icons" style='margin-bottom: -6px;'>
+      <i class="material-icons"
+         style='margin-bottom: -6px;'>
         arrow_downward
       </i>
     </div>
@@ -391,7 +409,8 @@ limitations under the License.
       <div id='loading'>
         <div class="mdl-spinner mdl-spinner--single-color mdl-js-spinner is-active"></div>
       </div>
-      <div id='vis-bg' class='hidden'></div>
+      <div id='vis-bg'
+           class='hidden'></div>
       <div id='vis-holder'></div>
     </div>
   </div>
