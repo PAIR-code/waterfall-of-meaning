@@ -34,11 +34,24 @@ export function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+export function sleepRAF(iterations: number) {
+  let loopCounter = 0;
+  const loop = (resolve: (value?: unknown) => void) => {
+    if (loopCounter++ < iterations) {
+      requestAnimationFrame(() => loop(resolve));
+    }
+    else {
+      resolve();
+    }
+  }
+  return new Promise(resolve => loop(resolve));
+}
+
 export async function loadDatabase(
-    embUrl: string, embWordUrl: string, embValUrl: string) {
+  embUrl: string, embWordUrl: string, embValUrl: string) {
   // Check if we have an entry in the database.
   const db = new Dexie(embUrl);
-  db.version(1).stores({embeddings: 'words,values'});
+  db.version(1).stores({ embeddings: 'words,values' });
 
   let words: string[];
   let embeddings: Float32Array;
@@ -52,8 +65,8 @@ export async function loadDatabase(
     embeddings = new Float32Array(await embeddingsRequest.arrayBuffer());
 
 
-    const blob = new Blob([embeddings], {type: 'octet/stream'});
-    await (db as any).embeddings.put({words, values: blob});
+    const blob = new Blob([embeddings], { type: 'octet/stream' });
+    await (db as any).embeddings.put({ words, values: blob });
   } else {
     console.log('Loading embeddings from IndexedDB cache...');
     const results = await (db as any).embeddings.toArray();
@@ -62,7 +75,7 @@ export async function loadDatabase(
     embeddings = await new Promise<Float32Array>((resolve) => {
       const fileReader = new FileReader();
       fileReader.onload = event =>
-          resolve(new Float32Array((event.target as any).result));
+        resolve(new Float32Array((event.target as any).result));
       fileReader.readAsArrayBuffer(results[0].values);
     });
     await db.close();
@@ -71,7 +84,7 @@ export async function loadDatabase(
   const returns = filterWords(words, embeddings);
   words = returns.words;
   embeddings = returns.embeddings;
-  return {words, embeddings};
+  return { words, embeddings };
 }
 
 export function shuffle(a: any[]) {
@@ -104,31 +117,31 @@ export function filterWords(words: string[], embeddings: Float32Array) {
 
   words = filteredWords;
   embeddings = new Float32Array(filteredEmbs);
-  return {words, embeddings};
+  return { words, embeddings };
 }
 
 // Taken from
 // https://stackoverflow.com/questions/118241/calculate-text-width-with-javascript
 export function stringWidth(str: string, fontsize: number) {
   var f = fontsize + 'px Roboto Condensed',
-      o = $('<div></div>')
-              .text(str)
-              .css({
-                'position': 'absolute',
-                'float': 'left',
-                'white-space': 'nowrap',
-                'visibility': 'hidden',
-                'font': f
-              })
-              .appendTo($('body')),
-      w = o.width();
+    o = $('<div></div>')
+      .text(str)
+      .css({
+        'position': 'absolute',
+        'float': 'left',
+        'white-space': 'nowrap',
+        'visibility': 'hidden',
+        'font': f
+      })
+      .appendTo($('body')),
+    w = o.width();
   o.remove();
   return w;
 }
 
 export function rgba(opacity: number, white = true) {
   return white ? `rgba(255, 255, 255, ${opacity})` :
-                 `rgba(0, 0, 0, ${opacity})`;
+    `rgba(0, 0, 0, ${opacity})`;
 }
 
 
@@ -149,12 +162,12 @@ export function averageAbs(sims: number[]): number {
 
 
 /** Parse the url into params. */
-export function parseURL(): {[id: string]: string;} {
+export function parseURL(): { [id: string]: string; } {
   const url = window.location.href;
   let paramsArr = url.split('#');
   if (paramsArr.length > 1) {
     paramsArr = paramsArr[1].split('&');
-    const params: {[id: string]: string;} = {};
+    const params: { [id: string]: string; } = {};
     for (let i = 0; i < paramsArr.length; i++) {
       const keyval = paramsArr[i].split('=');
       params[keyval[0]] = keyval[1];
@@ -183,9 +196,9 @@ export function isInAxes(word: string, visAxes: string[][]) {
 export function refreshAtMidnight() {
   const now = new Date();
   const night = new Date(
-      now.getFullYear(), now.getMonth(),
-      now.getDate() + 1,  // the next day, ...
-      0, 0, 0             // ...at 00:00:00 hours
+    now.getFullYear(), now.getMonth(),
+    now.getDate() + 1,  // the next day, ...
+    0, 0, 0             // ...at 00:00:00 hours
   );
   const msTillMidnight = night.getTime() - now.getTime();
   setTimeout(() => document.location.reload(), msTillMidnight);

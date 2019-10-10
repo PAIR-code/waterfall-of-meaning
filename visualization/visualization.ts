@@ -69,7 +69,7 @@ export class Visualization {
 
 
   constructor(
-      private axes: string[][], private scale = 1, private whiteWords = true) {
+    private axes: string[][], private scale = 1, private whiteWords = true, private aspectRatio = .5) {
     this.start();
   }
   start() {
@@ -91,7 +91,7 @@ export class Visualization {
 
   private setDimensions() {
     this.eltHeight = 2000 * this.scale;
-    this.eltWidth = this.eltHeight / 2;
+    this.eltWidth = this.eltHeight * this.aspectRatio;
     this.top = this.eltHeight / 5;
     this.bottom = 0;
     this.left = -this.eltWidth * 2 / 5 / 4;
@@ -146,8 +146,8 @@ export class Visualization {
    *
    */
   addWord(
-      word: string, similarities: number[], isQueryWord: boolean,
-      isBackgroundWord: boolean) {
+    word: string, similarities: number[], isQueryWord: boolean,
+    isBackgroundWord: boolean) {
     // Rate limit number of words added.
     const rateLimitExceeded = this.words.length > MAX_WORDS && !isQueryWord;
     if (rateLimitExceeded || this.wordAlreadyAdded(word, isQueryWord)) {
@@ -176,10 +176,10 @@ export class Visualization {
       scale /= 2;
     }
     const wordWidth =
-        utils.stringWidth(word, Math.ceil(this.trueFontSize * scale));
+      utils.stringWidth(word, Math.ceil(this.trueFontSize * scale));
 
     // Start the words at the top.
-    const startYPos = isBackgroundWord ? this.randomYPos() : this.top * 1.05;
+    const startYPos = isBackgroundWord ? this.randomYPos() : this.top;
 
     // If the word is a background word, make it lighter but with some
     // variation.
@@ -253,8 +253,8 @@ export class Visualization {
       const rady = Math.ceil(60 * this.scale);
       const radx = Math.ceil(Math.max(word.width * .6, rady));
       ctx.ellipse(
-          (word.pos.x + this.right) * 5, y - 20 * this.scale, radx, rady, 0, 0,
-          2 * Math.PI);
+        (word.pos.x + this.right) * 5, y - 20 * this.scale, radx, rady, 0, 0,
+        2 * Math.PI);
       ctx.fill();
     }
 
@@ -296,7 +296,7 @@ export class Visualization {
       ctx.strokeStyle = utils.rgba(opacity, this.whiteWords);
       const yLow = y + 5;
       ctx.lineWidth = word.isQueryWord ? Math.ceil(5 * this.scale) :
-                                         Math.ceil(1 * this.scale);
+        Math.ceil(1 * this.scale);
       ctx.moveTo(x, yLow);
       ctx.lineTo(x + word.width, yLow);
       ctx.stroke();
@@ -390,14 +390,14 @@ export class Visualization {
       // Target location, (in %.)
       const targetLoc = (axesWidth / this.width) * utils.clamp(bias, -1, 1);
       const targetLocPrev =
-          (axesWidth / this.width) * utils.clamp(prevBias, -1, 1);
+        (axesWidth / this.width) * utils.clamp(prevBias, -1, 1);
 
       // Spring force toward the target location, (in %.)
       const springForceKNow = .1;
       const springForceKPrev = 1;
       const pullNow = (targetLoc - pos.x / (this.width / 2)) / springForceKNow;
       const pullPrev =
-          (targetLocPrev - pos.x / (this.width / 2)) / springForceKPrev;
+        (targetLocPrev - pos.x / (this.width / 2)) / springForceKPrev;
       const pull = utils.lerp(blendVal, pullPrev, pullNow);
       const posVel = this.getNewLoc(pos, vel, pull, speed, wordObj);
 
@@ -442,8 +442,8 @@ export class Visualization {
    * @param isRain: Is this rain?
    */
   private getNewLoc(
-      prevPos: THREE.Vector3, prevV: number, xForce: number, bias: number,
-      word: word) {
+    prevPos: THREE.Vector3, prevV: number, xForce: number, bias: number,
+    word: word) {
     let speed = this.wordSpeed;
 
     // Unless the word is the query word, make more "interesting" words last
@@ -482,7 +482,7 @@ export class Visualization {
         }
       }
     }
-    return {x, y, z, v};
+    return { x, y, z, v };
   }
 
   /** Randomn position, in THREE js units, along the x axis. */

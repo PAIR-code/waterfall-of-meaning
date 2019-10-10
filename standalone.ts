@@ -18,8 +18,8 @@ import * as tf from '@tensorflow/tfjs';
 import Dexie from 'dexie';
 import trie from 'trie-prefix-tree';
 import * as utils from './visualization/utils';
-import {Visualization} from './visualization/visualization'
-import {WordEmbedding} from './word_embedding';
+import { Visualization } from './visualization/visualization'
+import { WordEmbedding } from './word_embedding';
 
 const EMBEDDINGS_DIR = 'https://storage.googleapis.com/waterfall-of-meaning/'
 const EMBEDDINGS_WORDS_URL = EMBEDDINGS_DIR + 'embedding-words.json';
@@ -27,30 +27,47 @@ const EMBEDDINGS_VALUES_URL = EMBEDDINGS_DIR + 'embedding-values.bin';
 
 let NEIGHBOR_COUNT = 30;
 let emb: WordEmbedding;
+let vis: Visualization;
 
 const visAxes = [
-  ['machine', 'human'], ['he', 'she'], ['bad', 'good'], ['expensive', 'cheap']
+  ['expensive', 'cheap'],
+  ['machine', 'human'],
+  ['old', 'new'],
+  // ['happy', 'sad'],
+  // ['crazy', 'sane'],
+  ['silent', 'loud'],
+
+  // ['happy', 'sad'],
+  // , ['mild', 'intense']
+  // ['lucky', 'unlucky'],
 ];
-let vis = new Visualization(visAxes, .6, false);
+const screenArea = document.getElementById('rhs').getBoundingClientRect();
+const visWidth = screenArea.width;
+const aspectRatio = 1;
+const scale = visWidth / (2000 * aspectRatio);
+console.log(scale)
+const wordsAreWhite = false;
+vis = new Visualization(visAxes, scale, wordsAreWhite, aspectRatio);
+
 /** Id of this input. Used when auto-inputing. */
 let inputId = 0;
 /** Default words to input when no one is interacting. */
 let defaultInputsId = 0;
 const defaultInputs = [
-  'doctor', 'teach',    'nurse', 'politician', 'Witch', 'fear',  'laugh',
-  'clever', 'fabulous', 'labor', 'dragon',     'squid', 'shark', 'feline',
-  'beer',   'soda',     'Meat',  'pickle',     'fish',  'donut', 'soccer',
-  'dance',  'football', 'grass', 'red',        'skull'
+  'doctor', 'teach', 'nurse', 'politician', 'witch', 'fear', 'laugh',
+  'clever', 'fabulous', 'labor', 'dragon', 'squid', 'shark', 'feline',
+  'beer', 'soda', 'meat', 'pickle', 'fish', 'donut', 'soccer',
+  'dance', 'football', 'grass', 'red', 'skull'
 ];
-const AUTO_INPUT_TIMEOUT_MS = 20000;
+const AUTO_INPUT_TIMEOUT_RAFS = 1000;
+const NEIGHBOR_WAIT_TIMEOUT_RAFS = 20;
 const button =
-    document.getElementById('button').getElementsByClassName('mdl-button')[0];
+  document.getElementById('button').getElementsByClassName('mdl-button')[0];
 const textInput = <HTMLInputElement>document.getElementById('wordInput');
 const autocomplete = document.getElementById('autocomplete');
 keepInputFocused();
 const error = document.getElementById('error');
 let prefixTrie: trie;
-let searchId = 0;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Miscelaneous functions.
@@ -75,11 +92,9 @@ async function sendWord(word: string) {
   word = word.replace(/_/g, ' ').toLowerCase();
   if (emb.hasWord(word) && !utils.isInAxes(word, visAxes)) {
     projectWordsVis(word);
-    console.log('projected')
   }
   textInput.value = '';
   button.setAttribute('disabled', 'true');
-  searchId++;
 }
 
 /**  Clear all children of an HTML element. */
@@ -97,20 +112,42 @@ button.onclick = () => {
   attemptSendWord(word);
 };
 
-const hideShowButton = document.getElementById('hide_show');
+
+// Add buttons to minimize/expand the info panel on desktop.
+const hideShowButtonDesktop = document.getElementById('hide_show_desktop');
 const sideBar = document.getElementById('info_side');
-let sideBarHidden = false;
-hideShowButton.onclick = () => {
-  if (sideBarHidden) {
+function toggleD(show: boolean) {
+  if (show) {
     sideBar.classList.remove('minimized');
-    hideShowButton.innerHTML = 'arrow_back_ios';
+    hideShowButtonDesktop.innerHTML = 'arrow_back_ios';
   } else {
     sideBar.classList.add('minimized');
-    hideShowButton.innerHTML = 'arrow_forward_ios';
+    hideShowButtonDesktop.innerHTML = 'menu';
   }
-  sideBarHidden = !sideBarHidden;
 };
+hideShowButtonDesktop.onclick = () => toggleD(sideBar.classList.contains('minimized'));
 
+// Add buttons to minimize/expand the info panel on mobile.
+const hideShowButtonMobile = document.getElementById('hide_show_mobile');
+const infoBarMobile = document.getElementById('info');
+function toggleM(show: boolean) {
+  if (show) {
+    infoBarMobile.classList.remove('minimized');
+    hideShowButtonMobile.innerHTML = 'expand_more';
+  } else {
+    infoBarMobile.classList.add('minimized');
+    hideShowButtonMobile.innerHTML = 'expand_less';
+  }
+};
+hideShowButtonMobile.onclick = () => toggleM(infoBarMobile.classList.contains('minimized'));
+// When the window resizes, make sure that the menu is open.
+
+window.onresize = () => {
+  if (window.innerWidth > 768) {
+    toggleM(true);
+    toggleD(true);
+  }
+}
 
 /**
  * For dealing with the user typing in the input box.
@@ -153,6 +190,7 @@ textInput.onkeyup = (ev: KeyboardEvent) => {
         // If the user clicks an option, select that one.
         option.onclick = () => {
           textInput.value = word;
+          hideAutocomplete(true);
         }
       }
     } else {
@@ -189,8 +227,11 @@ async function setup() {
 
   utils.refreshAtMidnight();
   const data = await utils.loadDatabase(
-      EMBEDDINGS_DIR, EMBEDDINGS_WORDS_URL, EMBEDDINGS_VALUES_URL);
+    EMBEDDINGS_DIR, EMBEDDINGS_WORDS_URL, EMBEDDINGS_VALUES_URL);
 
+  document.getElementById('vis-bg').classList.remove('hidden');
+  document.getElementById('loading').classList.add('hidden');
+  textInput.removeAttribute('disabled');
   // Load embeddings and words from the database
   // Words should be displayed with no underlines and all in lowercase
   const words = data.words;
@@ -207,11 +248,12 @@ async function setup() {
 
   // Calculate the axis norms.
   axisNorms =
-      await emb.computeAverageWordSimilarity(visAxes).data() as Float32Array;
+    await emb.computeAverageWordSimilarity(visAxes).data() as Float32Array;
 
   // Calculate dictionary of every word's similarity to the axes.
   projections = await precalculatProjections(words);
   createBackgroundWords(projections);
+
 
   prefixTrie = trie(words);
   startWaiting();
@@ -224,7 +266,7 @@ async function setup() {
  */
 async function startWaiting() {
   const lastInput = inputId;
-  await utils.sleep(AUTO_INPUT_TIMEOUT_MS);
+  await utils.sleepRAF(AUTO_INPUT_TIMEOUT_RAFS);
   if (lastInput === inputId) {
     defaultInputsId++;
     const word = defaultInputs[defaultInputsId % defaultInputs.length];
@@ -243,7 +285,7 @@ async function typewriter(word: string) {
   hideAutocomplete(true);
   for (let i = 0; i < word.length; i++) {
     textInput.value += word[i];
-    // Add a little bit of randomness to appear human.
+    // Add a little bit of randomness.
     await utils.sleep(100 + 400 * Math.random());
   }
   await utils.sleep(500);
@@ -255,7 +297,7 @@ setup();
 // cache.
 (window as any).clearDatabase = async () => {
   const db = new Dexie(EMBEDDINGS_DIR);
-  db.version(1).stores({embeddings: 'words,values'});
+  db.version(1).stores({ embeddings: 'words,values' });
   await db.delete();
   console.log('Database deleted.');
 };
@@ -269,7 +311,7 @@ setup();
 let axisNorms: Float32Array;
 
 /** Precalculated projections of the words on each axis. */
-let projections: {[key: string]: number[]};
+let projections: { [key: string]: number[] };
 
 
 /**
@@ -296,12 +338,13 @@ async function projectWordsVis(word: string) {
     const neighbor = knn[i];
     const sims = projections[neighbor];
     const avgSim = utils.averageAbs(sims);
-    divisiveNNs.push({neighbor, sims, avgSim});
+    divisiveNNs.push({ neighbor, sims, avgSim });
 
     // If this is the query word, go ahead and add it.
     if (neighbor === word) {
       const isBackgroundWord = false;
       const isQueryWord = true;
+      console.log('projected');
       vis.addWord(word, sims, isQueryWord, isBackgroundWord);
     }
   }
@@ -309,7 +352,7 @@ async function projectWordsVis(word: string) {
   // Take only the top n most divisive.
   // Sort by the average similarity value stored above.
   divisiveNNs.sort(
-      (a, b) => (a.avgSim < b.avgSim) ? 1 : ((b.avgSim < a.avgSim) ? -1 : 0));
+    (a, b) => (a.avgSim < b.avgSim) ? 1 : ((b.avgSim < a.avgSim) ? -1 : 0));
   divisiveNNs = divisiveNNs.slice(0, divisiveNNs.length * .75);
   divisiveNNs = utils.shuffle(divisiveNNs);
   for (let i = 0; i < NEIGHBOR_COUNT; i++) {
@@ -319,7 +362,7 @@ async function projectWordsVis(word: string) {
     const isQueryWord = nn.neighbor === word;
     if (!isQueryWord) {
       // Sleep between releasing words so that they are spread out visually.
-      await utils.sleep(500);
+      await utils.sleepRAF(NEIGHBOR_WAIT_TIMEOUT_RAFS);
       vis.addWord(nn.neighbor, nn.sims, isQueryWord, false);
     }
   }
@@ -336,9 +379,9 @@ function stretchValueVis(value: number): number {
  * @param words dictionary of words to save
  */
 async function precalculatProjections(words: string[]) {
-  const dists: {[key: string]: number[]} = {};
+  const dists: { [key: string]: number[] } = {};
   const allProjections =
-      await emb.computeProjections(visAxes).array() as number[][];
+    await emb.computeProjections(visAxes).array() as number[][];
   for (let i = 0; i < words.length; i++) {
     const word = words[i];
     dists[word] = [];
