@@ -29,14 +29,26 @@ let NEIGHBOR_COUNT = 30;
 let emb: WordEmbedding;
 let vis: Visualization;
 
-const visAxes = [
-  ['expensive', 'cheap'],
-  ['machine', 'human'],
-  ['old', 'new'],
-  // ['happy', 'sad'],
-  // ['crazy', 'sane'],
-  ['silent', 'loud'],
+/**
+ * NAMES:
+ * associated press
+ * associated times
+ * the daily association
+ * the
+ *
+ *
+ * */
 
+const visAxes = [
+  ['life', 'death'],
+  ['machine', 'human'],
+  ['expensive', 'cheap'],
+  ['new', 'old'],
+
+  // ['easy', 'hard'],
+  // ['happy', 'sad'],
+  // ['new', 'old'],
+  // ['crazy', 'sane'],
   // ['happy', 'sad'],
   // , ['mild', 'intense']
   // ['lucky', 'unlucky'],
@@ -46,7 +58,7 @@ const visWidth = screenArea.width;
 const aspectRatio = 1;
 const scale = visWidth / (2000 * aspectRatio);
 console.log(scale)
-const wordsAreWhite = false;
+const wordsAreWhite = true;
 vis = new Visualization(visAxes, scale, wordsAreWhite, aspectRatio);
 
 /** Id of this input. Used when auto-inputing. */
