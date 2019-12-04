@@ -1197,5 +1197,5 @@ export const BadWords: string[] = [
   'molesting',
   'strangled',
   'succubus',
-
+  'erotic',
 ]
