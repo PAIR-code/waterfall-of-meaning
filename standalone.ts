@@ -18,8 +18,8 @@ import * as tf from '@tensorflow/tfjs';
 import Dexie from 'dexie';
 import trie from 'trie-prefix-tree';
 import * as utils from './visualization/utils';
-import { Visualization } from './visualization/visualization'
-import { WordEmbedding } from './word_embedding';
+import {Visualization} from './visualization/visualization'
+import {WordEmbedding} from './word_embedding';
 
 const EMBEDDINGS_DIR = 'https://storage.googleapis.com/waterfall-of-meaning/'
 const EMBEDDINGS_WORDS_URL = EMBEDDINGS_DIR + 'embedding-words.json';
@@ -40,24 +40,21 @@ let vis: Visualization;
  * */
 
 const visAxes = [
-  ['life', 'death'],
-  ['machine', 'human'],
-  ['expensive', 'cheap'],
+  ['life', 'death'], ['machine', 'human'], ['expensive', 'cheap'],
   ['new', 'old'],
-
   // ['easy', 'hard'],
   // ['happy', 'sad'],
   // ['new', 'old'],
   // ['crazy', 'sane'],
   // ['happy', 'sad'],
-  // , ['mild', 'intense']
+  // ['mild', 'intense']
   // ['lucky', 'unlucky'],
 ];
 const screenArea = document.getElementById('rhs').getBoundingClientRect();
 const visWidth = screenArea.width;
-const aspectRatio = 1;
+const aspectRatio = Math.min(1, screenArea.width / window.innerHeight);
 const scale = visWidth / (2000 * aspectRatio);
-console.log(scale)
+console.log(scale);
 const wordsAreWhite = true;
 vis = new Visualization(visAxes, scale, wordsAreWhite, aspectRatio);
 
@@ -66,15 +63,18 @@ let inputId = 0;
 /** Default words to input when no one is interacting. */
 let defaultInputsId = 0;
 const defaultInputs = [
-  'doctor', 'teach', 'nurse', 'politician', 'witch', 'fear', 'laugh',
-  'clever', 'fabulous', 'labor', 'dragon', 'squid', 'shark', 'feline',
-  'beer', 'soda', 'meat', 'pickle', 'fish', 'donut', 'soccer',
-  'dance', 'football', 'grass', 'red', 'skull'
+  'fashioned', 'ugly',     'plant',  'fresh', 'lexicon', 'shirt',
+  'doctor',    'teach',    'fear',   'laugh', 'clever',  'fabulous',
+  'labor',     'dragon',   'squid',  'shark', 'feline',  'beer',
+  'soda',      'meat',     'pickle', 'fish',  'donut',   'soccer',
+  'dance',     'football', 'grass',  'red',   'skull'
+
+  // 'witch',
 ];
 const AUTO_INPUT_TIMEOUT_RAFS = 1000;
 const NEIGHBOR_WAIT_TIMEOUT_RAFS = 20;
 const button =
-  document.getElementById('button').getElementsByClassName('mdl-button')[0];
+    document.getElementById('button').getElementsByClassName('mdl-button')[0];
 const textInput = <HTMLInputElement>document.getElementById('wordInput');
 const autocomplete = document.getElementById('autocomplete');
 keepInputFocused();
@@ -137,7 +137,8 @@ function toggleD(show: boolean) {
     hideShowButtonDesktop.innerHTML = 'menu';
   }
 };
-hideShowButtonDesktop.onclick = () => toggleD(sideBar.classList.contains('minimized'));
+hideShowButtonDesktop.onclick = () =>
+    toggleD(sideBar.classList.contains('minimized'));
 
 // Add buttons to minimize/expand the info panel on mobile.
 const hideShowButtonMobile = document.getElementById('hide_show_mobile');
@@ -151,65 +152,68 @@ function toggleM(show: boolean) {
     hideShowButtonMobile.innerHTML = 'expand_less';
   }
 };
-hideShowButtonMobile.onclick = () => toggleM(infoBarMobile.classList.contains('minimized'));
+hideShowButtonMobile.onclick = () =>
+    toggleM(infoBarMobile.classList.contains('minimized'));
 // When the window resizes, make sure that the menu is open.
 
-window.onresize = () => {
-  if (window.innerWidth > 768) {
-    toggleM(true);
-    toggleD(true);
-  }
-}
+window.onresize =
+    () => {
+      if (window.innerWidth > 768) {
+        toggleM(true);
+        toggleD(true);
+      }
+    }
 
-/**
- * For dealing with the user typing in the input box.
- */
-textInput.onkeyup = (ev: KeyboardEvent) => {
-  inputId++;
-  clear(autocomplete);
-  hideAutocomplete(true);
-  error.classList.add('hidden');
-  const letters = textInput.value;
+          /**
+           * For dealing with the user typing in the input box.
+           */
+          textInput.onkeyup = (ev: KeyboardEvent) => {
+      inputId++;
+      clear(autocomplete);
+      hideAutocomplete(true);
+      error.classList.add('hidden');
+      const letters = textInput.value;
 
-  if (letters.length) {
-    button.removeAttribute('disabled');
-  } else {
-    button.setAttribute('disabled', 'true');
-  }
+      if (letters.length) {
+        button.removeAttribute('disabled');
+      } else {
+        button.setAttribute('disabled', 'true');
+      }
 
-  // If the key was "enter," go ahead and submit.
-  if (ev.which === 13) {
-    hideAutocomplete(true);
-    attemptSendWord(letters);
-  }
+      // If the key was "enter," go ahead and submit.
+      if (ev.which === 13) {
+        hideAutocomplete(true);
+        attemptSendWord(letters);
+      }
 
-  // Otherwise, show the autocomplete list.
-  else {
-    // Show all the potential words that start with this substring.
-    const numLetters = letters.length;
-    if (numLetters > 0) {
-      const potentialWords = prefixTrie.getPrefix(letters);
-      for (let i = 0; i < Math.min(5, potentialWords.length); i++) {
-        hideAutocomplete(false);
-        const word = potentialWords[i];
-        const suffix = word.substring(numLetters);
-        const option = autocomplete.appendChild(document.createElement('div'));
+      // Otherwise, show the autocomplete list.
+      else {
+        // Show all the potential words that start with this substring.
+        const numLetters = letters.length;
+        if (numLetters > 0) {
+          const potentialWords = prefixTrie.getPrefix(letters);
+          for (let i = 0; i < Math.min(5, potentialWords.length); i++) {
+            hideAutocomplete(false);
+            const word = potentialWords[i];
+            const suffix = word.substring(numLetters);
+            const option =
+                autocomplete.appendChild(document.createElement('div'));
 
-        // Bold everything except the prefix.
-        option.innerHTML = (letters.toLowerCase().bold() + suffix);
-        option.className += ' autocomplete-item';
+            // Bold everything except the prefix.
+            option.innerHTML = (letters.toLowerCase().bold() + suffix);
+            option.className += ' autocomplete-item';
 
-        // If the user clicks an option, select that one.
-        option.onclick = () => {
-          textInput.value = word;
+            // If the user clicks an option, select that one.
+            option.onclick = () => {
+              textInput.value = word;
+              hideAutocomplete(true);
+            }
+          }
+        } else {
           hideAutocomplete(true);
         }
       }
-    } else {
-      hideAutocomplete(true);
-    }
-  }
-};
+    };
 
 async function attemptSendWord(word: string) {
   if (prefixTrie.hasWord(word)) {
@@ -229,7 +233,8 @@ async function setup() {
   // Parse the params from the url.
   const params = utils.parseURL();
 
-  // If it's specified to only use the other input UI, hide the bar at the top.
+  // If it's specified to only use the other input UI, hide the bar at the
+  // top.
   if (('hideInput' in params) && (params['hideInput'] === 'true')) {
     document.getElementById('input_bar').style.display = 'none';
   }
@@ -239,7 +244,7 @@ async function setup() {
 
   utils.refreshAtMidnight();
   const data = await utils.loadDatabase(
-    EMBEDDINGS_DIR, EMBEDDINGS_WORDS_URL, EMBEDDINGS_VALUES_URL);
+      EMBEDDINGS_DIR, EMBEDDINGS_WORDS_URL, EMBEDDINGS_VALUES_URL);
 
   document.getElementById('vis-bg').classList.remove('hidden');
   document.getElementById('loading').classList.add('hidden');
@@ -260,7 +265,7 @@ async function setup() {
 
   // Calculate the axis norms.
   axisNorms =
-    await emb.computeAverageWordSimilarity(visAxes).data() as Float32Array;
+      await emb.computeAverageWordSimilarity(visAxes).data() as Float32Array;
 
   // Calculate dictionary of every word's similarity to the axes.
   projections = await precalculatProjections(words);
@@ -309,7 +314,7 @@ setup();
 // cache.
 (window as any).clearDatabase = async () => {
   const db = new Dexie(EMBEDDINGS_DIR);
-  db.version(1).stores({ embeddings: 'words,values' });
+  db.version(1).stores({embeddings: 'words,values'});
   await db.delete();
   console.log('Database deleted.');
 };
@@ -323,7 +328,7 @@ setup();
 let axisNorms: Float32Array;
 
 /** Precalculated projections of the words on each axis. */
-let projections: { [key: string]: number[] };
+let projections: {[key: string]: number[]};
 
 
 /**
@@ -350,13 +355,12 @@ async function projectWordsVis(word: string) {
     const neighbor = knn[i];
     const sims = projections[neighbor];
     const avgSim = utils.averageAbs(sims);
-    divisiveNNs.push({ neighbor, sims, avgSim });
+    divisiveNNs.push({neighbor, sims, avgSim});
 
     // If this is the query word, go ahead and add it.
     if (neighbor === word) {
       const isBackgroundWord = false;
       const isQueryWord = true;
-      console.log('projected');
       vis.addWord(word, sims, isQueryWord, isBackgroundWord);
     }
   }
@@ -364,7 +368,7 @@ async function projectWordsVis(word: string) {
   // Take only the top n most divisive.
   // Sort by the average similarity value stored above.
   divisiveNNs.sort(
-    (a, b) => (a.avgSim < b.avgSim) ? 1 : ((b.avgSim < a.avgSim) ? -1 : 0));
+      (a, b) => (a.avgSim < b.avgSim) ? 1 : ((b.avgSim < a.avgSim) ? -1 : 0));
   divisiveNNs = divisiveNNs.slice(0, divisiveNNs.length * .75);
   divisiveNNs = utils.shuffle(divisiveNNs);
   for (let i = 0; i < NEIGHBOR_COUNT; i++) {
@@ -391,9 +395,9 @@ function stretchValueVis(value: number): number {
  * @param words dictionary of words to save
  */
 async function precalculatProjections(words: string[]) {
-  const dists: { [key: string]: number[] } = {};
+  const dists: {[key: string]: number[]} = {};
   const allProjections =
-    await emb.computeProjections(visAxes).array() as number[][];
+      await emb.computeProjections(visAxes).array() as number[][];
   for (let i = 0; i < words.length; i++) {
     const word = words[i];
     dists[word] = [];
