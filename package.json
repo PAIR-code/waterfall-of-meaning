@@ -27,6 +27,7 @@
   "scripts": {
     "watch": "cross-env NODE_ENV=development parcel index.html input.html standalone.html --no-hmr --open",
     "build": "cross-env NODE_ENV=production parcel build index.html input.html --no-minify standalone.html --public-url ./",
+    "build-standalone": "cross-env NODE_ENV=production parcel build --no-minify standalone.html --public-url ./",
     "link-local": "yalc link"
   },
   "devDependencies": {
