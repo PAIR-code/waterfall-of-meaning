@@ -1,0 +1,159 @@
+runtime: python27
+api_version: 1
+threadsafe: true
+
+default_expiration: "7d"
+
+handlers:
+- url: /(.*\.(appcache|manifest))
+  mime_type: text/cache-manifest
+  static_files: \1
+  upload: (.*\.(appcache|manifest))
+  expiration: "0m"
+
+- url: /(.*\.css)
+  mime_type: text/css
+  static_files: \1
+  upload: (.*\.css)
+
+- url: /(.*\.eot)
+  mime_type: application/vnd.ms-fontobject
+  static_files: \1
+  upload: (.*\.eot)
+
+- url: /(.*\.html)
+  mime_type: text/html
+  static_files: \1
+  upload: (.*\.html)
+  expiration: "1h"
+
+- url: /(.*\.ico)
+  mime_type: image/x-icon
+  static_files: \1
+  upload: (.*\.ico)
+  expiration: "7d"
+
+- url: /(.*\.js)
+  mime_type: text/javascript
+  static_files: \1
+  upload: (.*\.js)
+
+- url: /(.*\.json)
+  mime_type: application/json
+  static_files: \1
+  upload: (.*\.json)
+  expiration: "1h"
+
+- url: /(.*\.m4v)
+  mime_type: video/m4v
+  static_files: \1
+  upload: (.*\.m4v)
+
+- url: /(.*\.mp4)
+  mime_type: video/mp4
+  static_files: \1
+  upload: (.*\.mp4)
+
+- url: /(.*\.(ogg|oga))
+  mime_type: audio/ogg
+  static_files: \1
+  upload: (.*\.(ogg|oga))
+
+- url: /(.*\.ogv)
+  mime_type: video/ogg
+  static_files: \1
+  upload: (.*\.ogv)
+
+- url: /(.*\.otf)
+  mime_type: font/opentype
+  static_files: \1
+  upload: (.*\.otf)
+
+- url: /(.*\.(svg|svgz))
+  mime_type: images/svg+xml
+  static_files: \1
+  upload: (.*\.(svg|svgz))
+
+- url: /(.*\.swf)
+  mime_type: application/x-shockwave-flash
+  static_files: \1
+  upload: (.*\.swf)
+
+- url: /(.*\.ttf)
+  mime_type: font/truetype
+  static_files: \1
+  upload: (.*\.ttf)
+
+- url: /(.*\.txt)
+  mime_type: text/plain
+  static_files: \1
+  upload: (.*\.txt)
+
+- url: /(.*\.webm)
+  mime_type: video/webm
+  static_files: \1
+  upload: (.*\.webm)
+
+- url: /(.*\.webp)
+  mime_type: image/webp
+  static_files: \1
+  upload: (.*\.webp)
+
+- url: /(.*\.woff)
+  mime_type: application/x-font-woff
+  static_files: \1
+  upload: (.*\.woff)
+
+- url: /(.*\.xml)
+  mime_type: application/xml
+  static_files: \1
+  upload: (.*\.xml)
+  expiration: "1h"
+
+- url: /(.*\.pdf)
+  mime_type: application/pdf
+  static_files: \1
+  upload: (.*\.pdf)
+
+- url: /(.*\.jpg)
+  mime_type: image/jpeg
+  static_files: \1
+  upload: (.*\.jpg)
+
+- url: /(.*\.jpeg)
+  mime_type: image/jpeg
+  static_files: \1
+  upload: (.*\.jpeg)
+
+- url: /(.*\.tif)
+  mime_type: image/tiff
+  static_files: \1
+  upload: (.*\.tif)
+
+- url: /(.*\.tiff)
+  mime_type: image/tiff
+  static_files: \1
+  upload: (.*\.tiff)
+
+- url: /(.*\.png)
+  mime_type: image/png
+  static_files: \1
+  upload: (.*\.png)
+
+- url: /(.*\.gif)
+  mime_type: image/gif
+  static_files: \1
+  upload: (.*\.gif)
+
+- url: /
+  static_files: standalone.html
+  upload: standalone.html
+
+- url: /index.html
+  static_files: standalone.html
+  upload: standalone.html
+
+
+- url: /(.*)
+  static_files: \1
+  upload: (.*)

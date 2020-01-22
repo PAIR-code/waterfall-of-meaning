@@ -3,7 +3,7 @@ npm-debug.log
 yarn-error.log
 .DS_Store
 dist/
-!dist/*.yaml
+!dist/app.yaml
 .idea/
 .cache/
 *.tgz
