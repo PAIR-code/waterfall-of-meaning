@@ -158,7 +158,9 @@ export class Visualization {
 
     // Make the scale a function of the bias values.
     const absSims: number[] = [];
-    similarities.forEach((sim: number) => absSims.push(Math.abs(sim)));
+    similarities.forEach((sim: number) => {
+      if (!isNaN(sim)) { absSims.push(Math.abs(sim)) }
+    });
     let scale = Math.max(...absSims);
     if (isQueryWord) {
       scale = 1;
@@ -184,7 +186,6 @@ export class Visualization {
     // If the word is a background word, make it lighter but with some
     // variation.
     const backgroundOpacity = .15 + .1 * (Math.random() - .5);
-
     // Finally, create the word object and add it to the scene.
     const wordObj: word = {
       string: word,
@@ -332,14 +333,14 @@ export class Visualization {
     const axisIdx = this.axes.indexOf(axis);
     const scaleHeight = this.axesToYPos(axisIdx);
 
-    axisDiv.style('top', (this.top - scaleHeight) * 5);
-    axisDiv.style('font-size', 50 * this.scale);
+    axisDiv.style('top', (this.top - scaleHeight) * 5 + 'px');
+    axisDiv.style('font-size', 50 * this.scale + 'px');
     this.axesWidths.push(this.width * 3 / 4);
 
     // Add top bar.
     const bar = holder.append('div').classed('bar', true);
     bar.style('opacity', 0.5)
-    bar.style('top', (this.top - scaleHeight) * 5);
+    bar.style('top', (this.top - scaleHeight) * 5 + 'px');
 
     // Add tick marks
     for (let i = 0; i < 20; i++) {
