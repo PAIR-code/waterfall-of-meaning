@@ -6224,10 +6224,10 @@ three-shaders@^1.0.16:
   resolved "https://registry.yarnpkg.com/three-shaders/-/three-shaders-1.0.16.tgz#b6a5d25fd272a98c67b0ee116ff3a1057b90684a"
   integrity sha1-tqXSX9JyqYxnsO4Rb/OhBXuQaEo=
 
-three@^0.100.0:
-  version "0.100.0"
-  resolved "https://registry.yarnpkg.com/three/-/three-0.100.0.tgz#262841c0b7d88ebd62af73f28d9f578963b3aa00"
-  integrity sha512-/lN2rdE1OqIwJr4/HcSaOisiCY0uVA0sqPpbCG5nil2uICEdS0LfGwSVYTtZDsIpR76r3++h5H3Hzg5D+SJBRQ==
+three@^0.137.0:
+  version "0.137.0"
+  resolved "https://registry.yarnpkg.com/three/-/three-0.137.0.tgz#0ebd6ba66637a332c31f234bcdd35aeec071a6e3"
+  integrity sha512-rzSDhia6cU35UCy6y+zEEws6vSgytfHqFMSaBvUcySgzwvDO6vETyswtSNi/+aVqJw8WLMwyT1mlQQ1T/dxxOA==
 
 through2@^2.0.0, through2@~2.0.3:
   version "2.0.5"
